@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "product": "Ocean Trader",
+  "sourceSpec": "OT-SPEC-001 v1.1",
+  "criticalPath": ["VI-001", "VI-002", "VI-005", "VI-006", "VI-008"],
+  "waves": [
+    {
+      "wave": 1,
+      "issues": ["VI-001"],
+      "reason": "Establish the first production-quality, persistent, mobile-first gameplay slice and stable domain/persistence interfaces."
+    },
+    {
+      "wave": 2,
+      "issues": ["VI-002", "VI-004"],
+      "reason": "Fleet management and harbour gameplay can progress in parallel after the shared voyage/company interfaces exist."
+    },
+    {
+      "wave": 3,
+      "issues": ["VI-003", "VI-005"],
+      "reason": "Map depends on fleet state; ship market/maintenance depends on stable fleet/company transactions."
+    },
+    {
+      "wave": 4,
+      "issues": ["VI-006", "VI-007"],
+      "reason": "Financing and deeper markets both build on the ship/economy model and can be implemented independently."
+    },
+    {
+      "wave": 5,
+      "issues": ["VI-008"],
+      "reason": "Era progression should be layered onto a functioning fleet, financing, and market game."
+    }
+  ],
+  "nextIssue": "VI-001"
+}
