@@ -1,4 +1,6 @@
-export type PortId = 'HAM' | 'RTM' | 'NYC' | 'SIN';
+export type PortId =
+  | 'HAM' | 'RTM' | 'LON' | 'ALG' | 'NYC' | 'SAV' | 'MIA' | 'STS' | 'BUE' | 'CPT'
+  | 'DUR' | 'DXB' | 'BOM' | 'SIN' | 'JKT' | 'HKG' | 'SHA' | 'BUS' | 'TYO' | 'SYD';
 
 export interface Contract { id:string; origin:PortId; destination:PortId; cargo:string; tonnes:number; payout:number; days:number; deadlineDays:number; }
 export interface Vessel { id:string; name:string; className:string; capacityTonnes:number; speedKnots:number; condition:number; fuelTonnes:number; currentPort:PortId|null; }
@@ -6,7 +8,10 @@ export interface VoyageEvent { day:number; title:string; effect:string; }
 export interface Voyage { id:string; vesselId:string; contractId:string; day:number; totalDays:number; fuelCost:number; maintenanceCost:number; eventCost:number; seed:number; events:VoyageEvent[]; }
 export interface GameState { schemaVersion:2; campaignDate:string; cash:number; reputation:number; vessels:Vessel[]; contracts:Contract[]; voyages:Voyage[]; completedContracts:string[]; transactionLog:string[]; }
 
-export const ports:Record<PortId,string>={HAM:'Hamburg',RTM:'Rotterdam',NYC:'New York',SIN:'Singapore'};
+export const ports:Record<PortId,string>={
+  HAM:'Hamburg',RTM:'Rotterdam',LON:'London Gateway',ALG:'Algeciras',NYC:'New York',SAV:'Savannah',MIA:'Miami',STS:'Santos',BUE:'Buenos Aires',
+  CPT:'Cape Town',DUR:'Durban',DXB:'Jebel Ali',BOM:'Mumbai',SIN:'Singapore',JKT:'Jakarta',HKG:'Hong Kong',SHA:'Shanghai',BUS:'Busan',TYO:'Tokyo',SYD:'Sydney'
+};
 
 export function createInitialState():GameState{
   return {schemaVersion:2,campaignDate:'1970-01-05',cash:420_000,reputation:50,
@@ -45,7 +50,7 @@ export function advanceVoyageDay(state:GameState,vesselId:string):GameState{
   let eventCost=voyage.eventCost,condition=Math.max(0,vessel.condition-.22),fuel=Math.max(0,vessel.fuelTonnes-24),events=voyage.events;
   const roll=seededUnit(voyage.seed+nextDay*97); if(roll>.77&&!events.some(e=>e.day===nextDay)){const cost=8_000+Math.floor(roll*8_000);eventCost+=cost;condition=Math.max(0,condition-1.1);events=[...events,{day:nextDay,title:'Schwere See',effect:`Zusatzkosten €${cost.toLocaleString('de-DE')} · Zustand -1,1 %`}];}
   const updated={...voyage,day:nextDay,fuelCost:voyage.fuelCost+dailyFuel,maintenanceCost:voyage.maintenanceCost+dailyMaintenance,eventCost,events};
-  let progressed={...state,vessels:state.vessels.map(v=>v.id===vesselId?{...v,condition,fuelTonnes:fuel}:v),voyages:state.voyages.map(v=>v.id===voyage.id?updated:v)};
+  const progressed={...state,vessels:state.vessels.map(v=>v.id===vesselId?{...v,condition,fuelTonnes:fuel}:v),voyages:state.voyages.map(v=>v.id===voyage.id?updated:v)};
   if(nextDay<voyage.totalDays)return progressed; return settleVoyage(progressed,vesselId,contract);
 }
 
