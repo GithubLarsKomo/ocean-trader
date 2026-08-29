@@ -1,70 +1,50 @@
-export type PortId =
-  | 'HAM' | 'RTM' | 'LON' | 'ALG' | 'NYC' | 'SAV' | 'MIA' | 'STS' | 'BUE' | 'CPT'
-  | 'DUR' | 'DXB' | 'BOM' | 'SIN' | 'JKT' | 'HKG' | 'SHA' | 'BUS' | 'TYO' | 'SYD';
+import { SHIP_CLASSES, bunkerPrice, createShipMarket, fuelPerDay, repairAvailable, repairCost, vesselFuelCapacity, vesselMarketValue } from './economy';
 
+export type PortId = 'HAM'|'RTM'|'LON'|'ALG'|'NYC'|'SAV'|'MIA'|'STS'|'BUE'|'CPT'|'DUR'|'DXB'|'BOM'|'SIN'|'JKT'|'HKG'|'SHA'|'BUS'|'TYO'|'SYD';
+export type ShipClassId = 'coaster'|'handysize'|'feeder'|'panamax';
 export interface Contract { id:string; origin:PortId; destination:PortId; cargo:string; tonnes:number; payout:number; days:number; deadlineDays:number; }
-export interface Vessel { id:string; name:string; className:string; capacityTonnes:number; speedKnots:number; condition:number; fuelTonnes:number; currentPort:PortId|null; }
+export interface Vessel { id:string; name:string; classId:ShipClassId; className:string; builtYear:number; capacityTonnes:number; speedKnots:number; condition:number; fuelCapacityTonnes:number; fuelTonnes:number; currentPort:PortId|null; }
+export interface ShipOffer { id:string; port:PortId; askingPrice:number; vessel:Vessel; }
 export interface VoyageEvent { day:number; title:string; effect:string; }
 export interface Voyage { id:string; vesselId:string; contractId:string; day:number; totalDays:number; fuelCost:number; maintenanceCost:number; eventCost:number; seed:number; events:VoyageEvent[]; arrivalPending?:boolean; }
-export interface GameState { schemaVersion:2; campaignDate:string; cash:number; reputation:number; vessels:Vessel[]; contracts:Contract[]; voyages:Voyage[]; completedContracts:string[]; transactionLog:string[]; }
+export interface GameState { schemaVersion:3; campaignDate:string; cash:number; reputation:number; vessels:Vessel[]; contracts:Contract[]; voyages:Voyage[]; shipMarket:ShipOffer[]; completedContracts:string[]; transactionLog:string[]; }
 
-export const ports:Record<PortId,string>={
-  HAM:'Hamburg',RTM:'Rotterdam',LON:'London Gateway',ALG:'Algeciras',NYC:'New York',SAV:'Savannah',MIA:'Miami',STS:'Santos',BUE:'Buenos Aires',
-  CPT:'Cape Town',DUR:'Durban',DXB:'Jebel Ali',BOM:'Mumbai',SIN:'Singapore',JKT:'Jakarta',HKG:'Hong Kong',SHA:'Shanghai',BUS:'Busan',TYO:'Tokyo',SYD:'Sydney'
-};
+export const ports:Record<PortId,string>={HAM:'Hamburg',RTM:'Rotterdam',LON:'London Gateway',ALG:'Algeciras',NYC:'New York',SAV:'Savannah',MIA:'Miami',STS:'Santos',BUE:'Buenos Aires',CPT:'Cape Town',DUR:'Durban',DXB:'Jebel Ali',BOM:'Mumbai',SIN:'Singapore',JKT:'Jakarta',HKG:'Hong Kong',SHA:'Shanghai',BUS:'Busan',TYO:'Tokyo',SYD:'Sydney'};
 
-export function createInitialState():GameState{
-  return {schemaVersion:2,campaignDate:'1970-01-05',cash:420_000,reputation:50,
-    vessels:[
-      {id:'ot-vessel-001',name:'MS Pioneer',className:'Handysize',capacityTonnes:18_000,speedKnots:18,condition:84,fuelTonnes:820,currentPort:'HAM'},
-      {id:'ot-vessel-002',name:'Baltic Star',className:'Coaster',capacityTonnes:9_000,speedKnots:15,condition:91,fuelTonnes:540,currentPort:'RTM'},
-      {id:'ot-vessel-003',name:'Atlantic Spirit',className:'Handysize',capacityTonnes:16_000,speedKnots:17,condition:87,fuelTonnes:760,currentPort:'NYC'}
-    ],contracts:[
-      {id:'C-HAM-RTM-001',origin:'HAM',destination:'RTM',cargo:'Maschinenteile',tonnes:5_500,payout:78_000,days:2,deadlineDays:4},
-      {id:'C-HAM-NYC-001',origin:'HAM',destination:'NYC',cargo:'Stahlprodukte',tonnes:12_000,payout:244_000,days:8,deadlineDays:11},
-      {id:'C-HAM-SIN-001',origin:'HAM',destination:'SIN',cargo:'Chemikalien',tonnes:8_600,payout:421_000,days:18,deadlineDays:23},
-      {id:'C-RTM-NYC-001',origin:'RTM',destination:'NYC',cargo:'Anlagenbau',tonnes:7_200,payout:176_000,days:7,deadlineDays:10},
-      {id:'C-RTM-HAM-001',origin:'RTM',destination:'HAM',cargo:'Konsumgüter',tonnes:4_200,payout:59_000,days:2,deadlineDays:4},
-      {id:'C-NYC-HAM-001',origin:'NYC',destination:'HAM',cargo:'Industriegüter',tonnes:11_000,payout:231_000,days:8,deadlineDays:12},
-      {id:'C-NYC-RTM-001',origin:'NYC',destination:'RTM',cargo:'Papierprodukte',tonnes:8_000,payout:194_000,days:7,deadlineDays:10}
-    ],voyages:[],completedContracts:[],transactionLog:['Kampagne gestartet · Startkapital €420.000']};
-}
+export function createInitialState():GameState{return{schemaVersion:3,campaignDate:'1970-01-05',cash:420_000,reputation:50,vessels:[
+ {id:'ot-vessel-001',name:'MS Pioneer',classId:'handysize',className:'Handysize',builtYear:1963,capacityTonnes:18_000,speedKnots:17,condition:84,fuelCapacityTonnes:1_050,fuelTonnes:820,currentPort:'HAM'},
+ {id:'ot-vessel-002',name:'Baltic Star',classId:'coaster',className:'Coaster',builtYear:1967,capacityTonnes:8_000,speedKnots:15,condition:91,fuelCapacityTonnes:620,fuelTonnes:540,currentPort:'RTM'},
+ {id:'ot-vessel-003',name:'Atlantic Spirit',classId:'handysize',className:'Handysize',builtYear:1965,capacityTonnes:18_000,speedKnots:17,condition:87,fuelCapacityTonnes:1_050,fuelTonnes:760,currentPort:'NYC'}
+],contracts:[
+ {id:'C-HAM-RTM-001',origin:'HAM',destination:'RTM',cargo:'Maschinenteile',tonnes:5_500,payout:78_000,days:2,deadlineDays:4},
+ {id:'C-HAM-NYC-001',origin:'HAM',destination:'NYC',cargo:'Stahlprodukte',tonnes:12_000,payout:244_000,days:8,deadlineDays:11},
+ {id:'C-HAM-SIN-001',origin:'HAM',destination:'SIN',cargo:'Chemikalien',tonnes:8_600,payout:421_000,days:18,deadlineDays:23},
+ {id:'C-RTM-NYC-001',origin:'RTM',destination:'NYC',cargo:'Anlagenbau',tonnes:7_200,payout:176_000,days:7,deadlineDays:10},
+ {id:'C-RTM-HAM-001',origin:'RTM',destination:'HAM',cargo:'Konsumgüter',tonnes:4_200,payout:59_000,days:2,deadlineDays:4},
+ {id:'C-NYC-HAM-001',origin:'NYC',destination:'HAM',cargo:'Industriegüter',tonnes:11_000,payout:231_000,days:8,deadlineDays:12},
+ {id:'C-NYC-RTM-001',origin:'NYC',destination:'RTM',cargo:'Papierprodukte',tonnes:8_000,payout:194_000,days:7,deadlineDays:10}
+],voyages:[],shipMarket:createShipMarket(),completedContracts:[],transactionLog:['Kampagne gestartet · Startkapital €420.000']};}
 
 export function voyageForVessel(state:GameState,vesselId:string){return state.voyages.find(v=>v.vesselId===vesselId)??null;}
 export function contractForVoyage(state:GameState,voyage:Voyage){return state.contracts.find(c=>c.id===voyage.contractId)??null;}
-export function availableContractsForVessel(state:GameState,vesselId:string){const vessel=state.vessels.find(v=>v.id===vesselId);if(!vessel?.currentPort||voyageForVessel(state,vesselId))return [];return state.contracts.filter(c=>c.origin===vessel.currentPort&&c.tonnes<=vessel.capacityTonnes);}
+export function availableContractsForVessel(state:GameState,vesselId:string){const vessel=state.vessels.find(v=>v.id===vesselId);if(!vessel?.currentPort||voyageForVessel(state,vesselId))return[];return state.contracts.filter(c=>c.origin===vessel.currentPort&&c.tonnes<=vessel.capacityTonnes);}
 
-export function acceptContract(state:GameState,vesselId:string,contractId:string):GameState{
-  if(voyageForVessel(state,vesselId))throw new Error('Vessel already has an active voyage.');
-  const vessel=state.vessels.find(v=>v.id===vesselId),contract=state.contracts.find(c=>c.id===contractId);
-  if(!vessel)throw new Error('Vessel not found.'); if(!contract)throw new Error('Contract not found.');
-  if(vessel.currentPort!==contract.origin)throw new Error('Vessel is not at contract origin.'); if(contract.tonnes>vessel.capacityTonnes)throw new Error('Cargo exceeds vessel capacity.');
-  return {...state,vessels:state.vessels.map(v=>v.id===vesselId?{...v,currentPort:null}:v),voyages:[...state.voyages,{id:`V-${contract.id}-${vesselId}`,vesselId,contractId,day:0,totalDays:contract.days,fuelCost:0,maintenanceCost:0,eventCost:0,seed:hashSeed(`${contract.id}:${vesselId}`),events:[]}],transactionLog:[`${vessel.name} · Vertrag ${ports[contract.origin]} → ${ports[contract.destination]}`,...state.transactionLog]};
-}
+export function acceptContract(state:GameState,vesselId:string,contractId:string):GameState{if(voyageForVessel(state,vesselId))throw new Error('Vessel already has an active voyage.');const vessel=state.vessels.find(v=>v.id===vesselId),contract=state.contracts.find(c=>c.id===contractId);if(!vessel)throw new Error('Vessel not found.');if(!contract)throw new Error('Contract not found.');if(vessel.currentPort!==contract.origin)throw new Error('Vessel is not at contract origin.');if(contract.tonnes>vessel.capacityTonnes)throw new Error('Cargo exceeds vessel capacity.');return{...state,vessels:state.vessels.map(v=>v.id===vesselId?{...v,currentPort:null}:v),voyages:[...state.voyages,{id:`V-${contract.id}-${vesselId}`,vesselId,contractId,day:0,totalDays:contract.days,fuelCost:0,maintenanceCost:0,eventCost:0,seed:hashSeed(`${contract.id}:${vesselId}`),events:[]}],transactionLog:[`${vessel.name} · Vertrag ${ports[contract.origin]} → ${ports[contract.destination]}`,...state.transactionLog]};}
 
-export function advanceVoyageDay(state:GameState,vesselId:string):GameState{
-  const voyage=voyageForVessel(state,vesselId); if(!voyage||voyage.arrivalPending)return state;
-  const vessel=state.vessels.find(v=>v.id===vesselId)!; const contract=state.contracts.find(c=>c.id===voyage.contractId)!; const nextDay=voyage.day+1;
-  const dailyFuel=Math.round(7_500+contract.tonnes*.65),dailyMaintenance=Math.round(1_100+(100-vessel.condition)*22);
-  let eventCost=voyage.eventCost,condition=Math.max(0,vessel.condition-.22),fuel=Math.max(0,vessel.fuelTonnes-24),events=voyage.events;
-  const roll=seededUnit(voyage.seed+nextDay*97); if(roll>.77&&!events.some(e=>e.day===nextDay)){const cost=8_000+Math.floor(roll*8_000);eventCost+=cost;condition=Math.max(0,condition-1.1);events=[...events,{day:nextDay,title:'Schwere See',effect:`Zusatzkosten €${cost.toLocaleString('de-DE')} · Zustand -1,1 %`}];}
-  const arrivalPending=nextDay>=voyage.totalDays;
-  const updated={...voyage,day:nextDay,fuelCost:voyage.fuelCost+dailyFuel,maintenanceCost:voyage.maintenanceCost+dailyMaintenance,eventCost,events,arrivalPending};
-  const progressed={...state,vessels:state.vessels.map(v=>v.id===vesselId?{...v,condition,fuelTonnes:fuel}:v),voyages:state.voyages.map(v=>v.id===voyage.id?updated:v)};
-  return arrivalPending?{...progressed,transactionLog:[`${vessel.name} vor ${ports[contract.destination]} · Hafenmanöver erforderlich`,...progressed.transactionLog]}:progressed;
-}
-
+export function advanceVoyageDay(state:GameState,vesselId:string):GameState{const voyage=voyageForVessel(state,vesselId);if(!voyage||voyage.arrivalPending)return state;const vessel=state.vessels.find(v=>v.id===vesselId)!;const contract=state.contracts.find(c=>c.id===voyage.contractId)!;const nextDay=voyage.day+1;const burn=fuelPerDay(vessel);const dailyFuel=Math.round(burn*bunkerPrice(contract.origin));const dailyMaintenance=Math.round(1_100+(100-vessel.condition)*22);let eventCost=voyage.eventCost,condition=Math.max(0,vessel.condition-.22),fuel=Math.max(0,vessel.fuelTonnes-burn),events=voyage.events;const roll=seededUnit(voyage.seed+nextDay*97);if(roll>.77&&!events.some(e=>e.day===nextDay)){const cost=8_000+Math.floor(roll*8_000);eventCost+=cost;condition=Math.max(0,condition-1.1);events=[...events,{day:nextDay,title:'Schwere See',effect:`Zusatzkosten €${cost.toLocaleString('de-DE')} · Zustand -1,1 %`}];}const arrivalPending=nextDay>=voyage.totalDays;const updated={...voyage,day:nextDay,fuelCost:voyage.fuelCost+dailyFuel,maintenanceCost:voyage.maintenanceCost+dailyMaintenance,eventCost,events,arrivalPending};const progressed={...state,vessels:state.vessels.map(v=>v.id===vesselId?{...v,condition,fuelTonnes:fuel}:v),voyages:state.voyages.map(v=>v.id===voyage.id?updated:v)};return arrivalPending?{...progressed,transactionLog:[`${vessel.name} vor ${ports[contract.destination]} · Hafenmanöver erforderlich`,...progressed.transactionLog]}:progressed;}
 export function advanceAllVoyagesDay(state:GameState):GameState{const ids=state.voyages.filter(v=>!v.arrivalPending).map(v=>v.vesselId);return ids.reduce((s,id)=>advanceVoyageDay(s,id),state);}
 
-export function completeHarbourArrival(state:GameState,vesselId:string,condition:number):GameState{
-  const voyage=voyageForVessel(state,vesselId); if(!voyage?.arrivalPending)throw new Error('No harbour arrival pending.');
-  const contract=contractForVoyage(state,voyage); if(!contract)throw new Error('Contract not found.');
-  const vessel=state.vessels.find(v=>v.id===vesselId)!; const costs=voyage.fuelCost+voyage.maintenanceCost+voyage.eventCost; const net=contract.payout-costs;
-  return {...state,cash:state.cash+net,reputation:Math.min(100,state.reputation+2),vessels:state.vessels.map(v=>v.id===vesselId?{...v,condition:Math.max(0,Math.min(v.condition,condition)),currentPort:contract.destination}:v),voyages:state.voyages.filter(v=>v.id!==voyage.id),completedContracts:[...state.completedContracts,contract.id],contracts:state.contracts.filter(c=>c.id!==contract.id),transactionLog:[`${vessel.name} festgemacht · Netto ${currency(net)}`,`Frachtumsatz ${currency(contract.payout)} · Kosten ${currency(costs)}`,...state.transactionLog]};
-}
+export function completeHarbourArrival(state:GameState,vesselId:string,condition:number):GameState{const voyage=voyageForVessel(state,vesselId);if(!voyage?.arrivalPending)throw new Error('No harbour arrival pending.');const contract=contractForVoyage(state,voyage);if(!contract)throw new Error('Contract not found.');const vessel=state.vessels.find(v=>v.id===vesselId)!;const costs=voyage.fuelCost+voyage.maintenanceCost+voyage.eventCost,net=contract.payout-costs;return{...state,cash:state.cash+net,reputation:Math.min(100,state.reputation+2),vessels:state.vessels.map(v=>v.id===vesselId?{...v,condition:Math.max(0,Math.min(v.condition,condition)),currentPort:contract.destination}:v),voyages:state.voyages.filter(v=>v.id!==voyage.id),completedContracts:[...state.completedContracts,contract.id],contracts:state.contracts.filter(c=>c.id!==contract.id),transactionLog:[`${vessel.name} festgemacht · Netto ${currency(net)}`,`Frachtumsatz ${currency(contract.payout)} · Kosten ${currency(costs)}`,...state.transactionLog]};}
 
-export function companyValue(state:GameState){return state.cash+state.vessels.reduce((sum,v)=>sum+Math.round(1_000_000*(v.capacityTonnes/18_000)*(v.condition/100)),0);}
-export function attentionCount(state:GameState){return state.vessels.filter(v=>v.condition<80||v.fuelTonnes<300||voyageForVessel(state,v.id)?.arrivalPending).length;}
+function serviceableVessel(state:GameState,vesselId:string):Vessel{const vessel=state.vessels.find(v=>v.id===vesselId);if(!vessel)throw new Error('Vessel not found.');if(!vessel.currentPort||voyageForVessel(state,vesselId))throw new Error('Vessel must be idle in port.');return vessel;}
+export function refuelVessel(state:GameState,vesselId:string,tonnes:number):GameState{const vessel=serviceableVessel(state,vesselId);const capacity=vesselFuelCapacity(vessel),amount=Math.max(0,Math.min(tonnes,capacity-vessel.fuelTonnes));if(amount<=0)return state;const price=bunkerPrice(vessel.currentPort!),cost=Math.round(amount*price);if(cost>state.cash)throw new Error('Insufficient cash.');return{...state,cash:state.cash-cost,vessels:state.vessels.map(v=>v.id===vesselId?{...v,fuelTonnes:v.fuelTonnes+amount}:v),transactionLog:[`${vessel.name} · ${Math.round(amount)} t gebunkert · ${currency(cost)}`,...state.transactionLog]};}
+export function repairVessel(state:GameState,vesselId:string,targetCondition:number):GameState{const vessel=serviceableVessel(state,vesselId);if(!repairAvailable(vessel.currentPort!))throw new Error('Repairs not available in this port.');const target=Math.max(vessel.condition,Math.min(100,targetCondition)),cost=repairCost(vessel,target);if(cost<=0)return state;if(cost>state.cash)throw new Error('Insufficient cash.');return{...state,cash:state.cash-cost,vessels:state.vessels.map(v=>v.id===vesselId?{...v,condition:target}:v),transactionLog:[`${vessel.name} · Reparatur auf ${target.toFixed(0)} % · ${currency(cost)}`,...state.transactionLog]};}
+export function buyShip(state:GameState,offerId:string):GameState{const offer=state.shipMarket.find(o=>o.id===offerId);if(!offer)throw new Error('Offer not found.');if(offer.askingPrice>state.cash)throw new Error('Insufficient cash.');const vessel={...offer.vessel,id:`owned-${offer.vessel.id}-${state.vessels.length+1}`};return{...state,cash:state.cash-offer.askingPrice,vessels:[...state.vessels,vessel],shipMarket:state.shipMarket.filter(o=>o.id!==offerId),transactionLog:[`${vessel.name} gekauft · ${ports[offer.port]} · ${currency(offer.askingPrice)}`,...state.transactionLog]};}
+export function sellVessel(state:GameState,vesselId:string):GameState{if(state.vessels.length<=1)throw new Error('Cannot sell last vessel.');const vessel=serviceableVessel(state,vesselId);const value=vesselMarketValue(vessel,state.campaignDate);return{...state,cash:state.cash+value,vessels:state.vessels.filter(v=>v.id!==vesselId),transactionLog:[`${vessel.name} verkauft · ${currency(value)}`,...state.transactionLog]};}
+
+export function companyValue(state:GameState){return state.cash+state.vessels.reduce((sum,v)=>sum+vesselMarketValue(v,state.campaignDate),0);}
+export function attentionCount(state:GameState){return state.vessels.filter(v=>v.condition<80||v.fuelTonnes<vesselFuelCapacity(v)*.25||voyageForVessel(state,v.id)?.arrivalPending).length;}
 export function currency(value:number){return new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(value);}
+export { SHIP_CLASSES, bunkerPrice, repairAvailable, repairCost, vesselFuelCapacity, vesselMarketValue } from './economy';
 function hashSeed(input:string){let h=2166136261;for(const ch of input)h=Math.imul(h^ch.charCodeAt(0),16777619);return h>>>0;}
 function seededUnit(seed:number){let x=seed>>>0;x^=x<<13;x^=x>>>17;x^=x<<5;return(x>>>0)/4294967295;}
