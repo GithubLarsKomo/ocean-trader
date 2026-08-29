@@ -14,14 +14,36 @@
 - VI-005: implemented — four ship classes, buy/sell market, bunkering, repairs, condition/age valuation, save schema v3
 - VI-006: implemented — transparent financing offers, debt service, liabilities in company value, liquidity risk preview, save schema v4
 - VI-007: implemented — deterministic local market cycles, cargo compatibility, port fees, route risk, expected-margin ranking, empty repositioning and save schema v5
-- `PRODUCT.md` / `DESIGN.md`: approved product and interaction context
+- VI-008: implemented — six campaign eras from 1970 into the future, era-dependent economics, technology unlocks, strategic era progression and save schema v6
+- Design Pass 1: implemented — maritime command-deck / shipping-ledger / nautical-chart visual system replacing the generic app-card aesthetic
+- `PRODUCT.md` / `DESIGN.md`: approved product and binding interaction/visual context
 - `prototypes/wayfinder/`: disposable evidence prototypes; not production code
 
-## Production sequence
+## Vertical production sequence
 
-Current production focus has advanced through **VI-007**. The remaining planned vertical slice is **VI-008 — campaign era progression from 1970 into the future**.
+The planned production backbone **VI-001 through VI-008 is now implemented**.
 
 `VI-001 → VI-002 → VI-003 → VI-004 → VI-005 → VI-006 → VI-007 → VI-008`
+
+The next phase is product refinement rather than another backbone slice: visual design, interaction polish, balance, content depth, usability evidence and release hardening.
+
+## Era progression
+
+Campaign eras currently span:
+
+`1970 Classic Shipping → 1985 Container Expansion → 2000 Global Scale → 2015 Digital Fleet → 2030 Energy Transition → 2045 Autonomous Horizons`
+
+Era progression changes fuel efficiency, maintenance economics, port costs, market volatility and technology availability. Strategic time jumps require an idle fleet, cost operating overhead and slightly reduce vessel condition.
+
+## Visual direction
+
+Ocean Trader should feel like a maritime simulation rather than a SaaS dashboard. The binding direction in `DESIGN.md` combines:
+
+- maritime command deck,
+- shipping ledger / manifest,
+- nautical chart.
+
+Mobile portrait remains the baseline. Tablet and desktop enhance the same task model rather than replacing it with a separate desktop dashboard.
 
 ## Development
 
@@ -31,5 +53,3 @@ npm test
 npm run build
 npm run dev
 ```
-
-The production UI baseline is smartphone portrait. Tablet and desktop are adaptive enhancements of the same task model.
