@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ocean Trader — P2 Hafenmanöver</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="harbor.css">
+</head>
+<body>
+<header class="topbar">
+  <div><div class="eyebrow">WAYFINDER / P2 HAFENMANÖVER</div><h1>MS Pioneer — Hamburg</h1></div>
+  <div class="nav-actions">
+    <a class="ghost link-btn" href="index.html">← Wirtschaft</a><a class="ghost link-btn" href="map.html">P3 Weltkarte →</a>
+    <button id="resetHarbor" class="ghost">Manöver neu starten</button>
+  </div>
+</header>
+
+<main class="harbor-layout">
+  <section class="panel harbor-panel">
+    <div class="panel-head">
+      <div><span class="label">Aufgabe</span><h2>Lege im markierten Liegeplatz an</h2></div>
+      <div id="dockStatus" class="status-pill">MANÖVER</div>
+    </div>
+    <div class="harbor-stage-wrap">
+      <canvas id="harborCanvas" width="1200" height="720"></canvas>
+    </div>
+    <div class="harbor-hud">
+      <div><span>Fahrt</span><strong id="speedOut">0.0 kn</strong></div>
+      <div><span>Maschine</span><strong id="throttleOut">STOP</strong></div>
+      <div><span>Ruder</span><strong id="rudderOut">MITTSCHIFFS</strong></div>
+      <div><span>Zustand</span><strong id="conditionOut">100 %</strong></div>
+      <div><span>Kollisionen</span><strong id="collisionOut">0</strong></div>
+      <div><span>Grundberührungen</span><strong id="groundingOut">0</strong></div>
+    </div>
+  </section>
+
+  <aside class="panel controls-panel">
+    <span class="label">Brücke</span>
+    <h2>Maschine & Ruder</h2>
+    <p id="harborMessage">Verlasse das Hafenbecken und lege langsam im markierten Liegeplatz an.</p>
+
+    <div class="control-group">
+      <span class="small">Maschine</span>
+      <div class="segmented">
+        <button data-throttle="-1">Voll zurück</button>
+        <button data-throttle="0" class="active">Stop</button>
+        <button data-throttle="0.45">Halb voraus</button>
+        <button data-throttle="1">Voll voraus</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <span class="small">Ruder</span>
+      <div class="segmented">
+        <button data-rudder="-1">Hart BB</button>
+        <button data-rudder="0" class="active">Mittschiffs</button>
+        <button data-rudder="1">Hart STB</button>
+      </div>
+    </div>
+
+    <div class="key-help">
+      <strong>Tastatur</strong>
+      <div><kbd>W</kbd>/<kbd>↑</kbd> mehr voraus</div>
+      <div><kbd>S</kbd>/<kbd>↓</kbd> mehr zurück</div>
+      <div><kbd>A</kbd>/<kbd>←</kbd> Backbordruder</div>
+      <div><kbd>D</kbd>/<kbd>→</kbd> Steuerbordruder</div>
+      <div><kbd>Leertaste</kbd> Maschine Stop</div>
+    </div>
+
+    <div class="criteria">
+      <span class="label">Docking-Kriterium</span>
+      <ul>
+        <li>Schiffsmitte im grünen Feld</li>
+        <li>nahezu parallel zur Pier</li>
+        <li>unter ca. 0,2 kn</li>
+      </ul>
+    </div>
+  </aside>
+</main>
+<footer>P2 prüft ausschließlich Manövriergefühl und Verständlichkeit. Hydrodynamik, Wind, Strömung, Propellerwirkung und Schlepper sind noch nicht produktionsreif modelliert.</footer>
+<script type="module" src="harbor.js"></script>
+</body>
+</html>

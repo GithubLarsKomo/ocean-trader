@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ocean Trader — Wayfinder Prototype</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div><div class="eyebrow">WAYFINDER / THROWAWAY PROTOTYPE</div><h1>Ocean Trader</h1></div>
+  <div class="nav-actions"><a class="ghost link-btn" href="harbor.html">P2 Hafen</a><a class="ghost link-btn" href="map.html">P3 Weltkarte</a><button id="resetBtn" class="ghost">Neu starten</button></div>
+</header>
+<main class="layout">
+  <section class="panel map-panel">
+    <div class="panel-head">
+      <div><span class="label">Weltkarte</span><h2 id="routeTitle">Hamburg</h2></div>
+      <div class="status-pill" id="statusPill">IM HAFEN</div>
+    </div>
+    <div class="map" id="map" aria-label="Stilisierte Weltkarte mit Häfen"></div>
+    <div class="voyage-strip">
+      <div><span>Tag</span><strong id="dayValue">1</strong></div>
+      <div><span>Position</span><strong id="positionValue">Hamburg</strong></div>
+      <div><span>ETA</span><strong id="etaValue">—</strong></div>
+      <div><span>Reise</span><strong id="progressValue">0%</strong></div>
+    </div>
+  </section>
+  <aside class="panel company-panel">
+    <span class="label">Reederei</span><h2>Northstar Shipping</h2>
+    <div class="metric"><span>Cash</span><strong id="cashValue"></strong></div>
+    <div class="metric"><span>Reputation</span><strong id="repValue"></strong></div>
+    <div class="metric"><span>Unternehmenswert</span><strong id="valueValue"></strong></div>
+    <hr>
+    <span class="label">Schiff</span><h3>MS Pioneer</h3>
+    <div class="metric"><span>Typ</span><strong>Handysize</strong></div>
+    <div class="metric"><span>Kapazität</span><strong>18.000 t</strong></div>
+    <div class="metric"><span>Geschwindigkeit</span><strong>18 kn</strong></div>
+    <div class="metric"><span>Zustand</span><strong id="conditionValue"></strong></div>
+    <div class="metric"><span>Treibstoff</span><strong id="fuelValue"></strong></div>
+  </aside>
+  <section class="panel contracts-panel">
+    <div class="panel-head">
+      <div><span class="label">Frachtmarkt</span><h2>Verfügbare Aufträge</h2></div>
+      <div class="small" id="marketLocation"></div>
+    </div>
+    <div id="contracts" class="contracts"></div>
+  </section>
+  <section class="panel action-panel">
+    <span class="label">Operation</span><h2 id="actionTitle">Auftrag auswählen</h2>
+    <p id="actionText">Wähle einen Frachtauftrag. Der Prototyp testet die vollständige ökonomische Kernschleife.</p>
+    <div class="event-box" id="eventBox" hidden>
+      <span class="label">Ereignis</span><strong id="eventTitle"></strong><p id="eventText"></p>
+    </div>
+    <button id="primaryBtn" class="primary" disabled>Auftrag übernehmen</button>
+    <button id="secondaryBtn" class="ghost" hidden>Weiter</button>
+  </section>
+  <section class="panel log-panel">
+    <span class="label">Logbuch</span><div id="log" class="log" aria-live="polite"></div>
+  </section>
+</main>
+<footer>Experimenteller Prototyp — keine Produktionsbasis. Kernhypothese: Die komplette Handelsreise muss in wenigen Minuten verständlich und motivierend sein.</footer>
+<script type="module" src="game.js"></script>
+</body>
+</html>

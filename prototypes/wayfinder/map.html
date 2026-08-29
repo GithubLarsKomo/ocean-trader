@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ocean Trader — P3 Weltkarte</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="map.css">
+</head>
+<body>
+<header class="topbar">
+  <div>
+    <div class="eyebrow">WAYFINDER / P3 WELTKARTE</div>
+    <h1>Global Fleet Operations</h1>
+  </div>
+  <div class="nav-actions">
+    <a class="ghost link-btn" href="index.html">P1 Wirtschaft</a>
+    <a class="ghost link-btn" href="harbor.html">P2 Hafen</a>
+    <button id="resetMap" class="ghost">Ansicht zurücksetzen</button>
+  </div>
+</header>
+
+<main class="map-layout">
+  <section class="panel map-main">
+    <div class="panel-head">
+      <div>
+        <span class="label">Globale Flotte</span>
+        <h2>20 Häfen · 5 aktive Schiffe</h2>
+      </div>
+      <div class="map-toolbar">
+        <button id="zoomOut" class="ghost">−</button>
+        <button id="zoomIn" class="ghost">+</button>
+        <button id="advanceBtn" class="primary compact">+ 6 h</button>
+      </div>
+    </div>
+    <div class="world-wrap">
+      <canvas id="worldCanvas" width="1400" height="760"></canvas>
+    </div>
+    <div class="map-hint">Drag zum Verschieben · Mausrad/Buttons zum Zoomen · Klick auf Hafen oder Schiff für Details</div>
+  </section>
+
+  <aside class="panel fleet-panel">
+    <span class="label">Fleet Overlay</span>
+    <h2>Aktive Reisen</h2>
+    <div id="fleetList" class="fleet-list"></div>
+    <hr>
+    <span class="label">Auswahl</span>
+    <div id="detailBox" class="detail-box">Wähle einen Hafen oder ein Schiff auf der Karte.</div>
+  </aside>
+</main>
+
+<footer>P3 prüft Informationsdichte und Skalierung. Die Karte ist schematisch; keine produktive Navigation, AIS-Integration oder reale Verkehrsführung.</footer>
+<script type="module" src="map.js"></script>
+</body>
+</html>
