@@ -1,191 +1,191 @@
 # Ocean Trader — Design System & Interaction Contract
 
-**Status:** Approved design context
-**Product:** Ocean Trader
-**Design priority:** Mobile First
+**Status:** APPROVED / binding production context  
+**Product:** Ocean Trader  
+**Design priority:** Mobile First  
+**Visual direction:** Maritime command deck + shipping ledger + nautical chart  
 **Source:** OT-SPEC-001 v1.1 + PRODUCT.md
 
-## 1. Design objective
+## 1. Product feeling
 
-Ocean Trader should feel like a modern maritime operations product rather than a retro game imitation: calm, precise, tactile, information-rich, and legible. The visual language must support quick operational decisions on a phone while still scaling elegantly to tablet and desktop.
+Ocean Trader is a maritime simulation, not a generic productivity app and not a retro clone. It should feel like a modern interpretation of a shipping company's command room: calm, atmospheric, tactile, precise and information-rich.
 
-The interface must never reproduce distinctive Ports of Call screens, artwork, typography, labels, or layout patterns.
+The experience combines three visual metaphors without literally imitating real software:
 
-## 2. Mobile-first layout contract
+- **Command deck:** live fleet state, attention, voyage progress, harbour control.
+- **Shipping ledger / manifest:** contracts, finance, vessel acquisition, transaction history.
+- **Nautical chart:** world map, ports, routes, spatial planning and era context.
 
-### Baseline viewport
+The UI must never reproduce distinctive Ports of Call screens, artwork, typography, labels or layouts.
 
-Design starts at a modern smartphone portrait viewport around 360–430 CSS px wide. Every core workflow must be complete there before tablet/desktop enhancements are added.
+## 2. Anti-SaaS rule
 
-### Responsive strategy
+Ocean Trader must not look like a dashboard template or mobile banking/productivity app.
 
-- **Phone:** one primary task surface at a time; bottom navigation; sheets/drawers for contextual detail; progressive disclosure.
-- **Tablet:** optional split view for list + detail; harbour may prefer landscape; persistent secondary context may appear where useful.
-- **Desktop:** multi-panel operational layout is allowed, but hierarchy and task order remain the same as mobile.
+Avoid as the dominant visual language:
 
-Never solve density by shrinking desktop tables onto phone screens.
+- large fields of identical rounded cards,
+- excessive pill badges,
+- generic blue/teal gradient surfaces,
+- floating white-space-heavy KPI dashboards,
+- icon-only app navigation without maritime context,
+- every module having the same card geometry.
 
-## 3. Information architecture
+Use instead restrained rectangular register/manifest surfaces, instrument-like status areas, chart frames, ledger lines, maritime typography and selective brass/signal accents. Rounded shapes are reserved primarily for true status indicators or controls where the shape improves usability.
 
-The primary mobile navigation contains at most five top-level destinations:
+## 3. Mobile-first layout contract
 
-1. **Command** — current cash, urgent attention, active voyages, next actions.
-2. **Market** — available contracts and economics.
-3. **Fleet** — vessels, cargo, condition, ETA, maintenance, exceptions.
-4. **Map** — ports, routes, vessel positions and drill-down.
-5. **Company** — value, debt, reputation, history, save/settings.
+Baseline: **360–430 CSS px portrait**. Every core workflow must be complete there before tablet/desktop enhancement.
 
-Contextual actions belong inside the current workflow rather than becoming additional global navigation items.
+- **Phone:** one primary task surface at a time; bottom command navigation; progressive disclosure.
+- **Tablet:** optional split list/detail, larger chart surface, harbour landscape enhancement.
+- **Desktop:** multi-panel command layout is allowed, but task order remains consistent with mobile.
 
-## 4. Interaction principles
+Never shrink a desktop table to fit phone width.
 
-- Critical touch targets: minimum **44 × 44 CSS px**; 48 px is preferred for primary game controls.
-- Primary actions should be reachable in the lower half of the screen where practical.
-- No critical action depends on hover, right-click, double-click, or pixel-precise dragging.
-- Back navigation must be predictable and must not discard uncommitted state without warning.
-- Destructive or irreversible financial actions require explicit confirmation when consequences are material.
-- Use immediate feedback for accepted commands; long operations require visible progress or state change.
-- Bottom sheets are preferred for mobile port/vessel details when the map should remain visible.
+## 4. Information architecture
 
-## 5. Visual hierarchy
+Primary destinations remain limited to four or five:
+
+1. **Market** — cargo and ship exchange.
+2. **Fleet** — vessel register, voyages, port operations.
+3. **Chart** — world map, routes, vessels and ports.
+4. **Company** — value, debt, journal, technology and era progression.
+
+A separate Command destination may be introduced later only if it adds genuine decision value; it must not duplicate the four operational surfaces.
+
+## 5. Hierarchy
 
 ### Level 1 — Decision
-
-The one action or condition that matters most now: accept contract, resolve event, berth vessel, repair, pay/finance, or choose next route.
+Accept contract, berth vessel, repair, finance, buy/sell, reposition, progress era.
 
 ### Level 2 — Operational state
+ETA, cash effect, condition, fuel, cargo, route, deadline, risk, debt, technology lock.
 
-ETA, cash impact, vessel condition, fuel, cargo, route, deadline, risk.
+### Level 3 — Supporting evidence
+Detailed market explanation, ledger history, secondary vessel specifications and provenance.
 
-### Level 3 — Supporting detail
+A phone viewport should rarely contain more than one Level-1 decision block.
 
-Historical transactions, secondary technical characteristics, detailed market explanation, provenance.
+## 6. Visual language
 
-A phone screen should rarely show more than one Level-1 decision block at a time.
+### Surfaces
 
-## 6. Typography
+- Deep blue-charcoal ocean background with restrained chart/grid structure.
+- Operational register panels: dark, rectangular, fine line-work, limited radius.
+- Important strategic panels may use a framed chart/ledger treatment.
+- Avoid decorative glassmorphism and large blur-heavy floating cards.
 
-Use a modern system-first sans-serif stack for production until a branded webfont is explicitly selected. Numeric values must be highly legible and use tabular numerals where supported.
+### Accent hierarchy
 
-Recommended type scale:
+- **Brass / warm sand:** strategic emphasis, selected records, campaign time, primary action.
+- **Signal cyan:** navigation/instrument state, route and live operational data.
+- **Amber:** attention and unresolved risk.
+- **Red:** danger/destructive action.
+- **Green:** safe/arrived/completed state.
 
-- Display / screen title: 28–32 px phone
-- Section title: 20–24 px
-- Card title: 16–18 px
-- Body: 15–17 px
-- Metadata: 13–14 px
-- Never place critical game data below 13 px on phone.
+Color is never the only state indicator.
 
-Line height should favor scanability over compactness. Avoid all-caps paragraphs; short operational labels may use restrained uppercase or letter spacing.
+### Typography
 
-## 7. Color system
+Use a dual hierarchy without external font dependency by default:
 
-The exact palette remains implementation-adjustable, but semantic roles are fixed.
+- Humanist/system sans for operational labels and controls.
+- Restrained maritime/editorial serif for product, vessel and major screen titles.
+- Monospace/tabular numerals for dates, money, debt, fuel, percentages and instrument values where useful.
 
-Required roles:
+Critical phone data must not fall below 13 px equivalent legibility; very small uppercase text may only be supporting labels.
 
-- **Ocean / background:** very dark blue-charcoal rather than pure black.
-- **Surface:** differentiated operational panels/cards.
-- **Primary action:** high-contrast maritime cyan/teal family.
-- **Attention:** amber/orange.
-- **Danger:** red family.
-- **Success / arrived / safe:** green family.
-- **Neutral text:** high-contrast off-white plus muted secondary tone.
+## 7. Core components
 
-Color must never be the only indicator of warning, success, selection, route state, or vessel condition; pair with icon, text, shape, or pattern.
+### Contract / manifest
+Must show route, assigned vessel, cargo, quantity, duration, deadline, market state, expected major costs/risk and payout before acceptance. It should read like a shipping manifest, not a commerce product card.
 
-## 8. Components
+### Vessel register
+The fleet list is a register with status/route/condition information. Selected vessel opens a larger vessel dossier with voyage or port-operation context.
 
-### Contract card
+### Ship market
+Offers show vessel identity, class, year, port, condition and price. Technology unavailable in the current era is shown explicitly as a locked capability, not silently disabled.
 
-Must show destination, cargo, quantity, payout, ETA/duration, deadline, expected major cost, and risk/constraint summary before acceptance. Mobile default is stacked, not table-like.
+### Company ledger
+Company value, debt, financing and journal use ledger-like separation and tabular numbers. Finance remains transparent before commitment.
 
-### Vessel card
+### Era chronometer
+Campaign era is always discoverable and visible in Company. The timeline communicates past/current/future periods, operational multipliers and technology unlocks. Strategic time progression is a material action with explicit cost/consequence.
 
-Must show name/class, current state, route or port, ETA, condition, fuel, cargo, and attention marker where relevant.
+## 8. World chart
 
-### KPI strip
+The map is the visual centrepiece for global operations, not a miniature widget.
 
-Use sparingly for cash, company value, debt, reputation, or fleet count. On phone, horizontal scrolling should not be required to understand critical KPIs.
+Phone requirements:
 
-### Bottom sheet / detail sheet
+- touch pan and zoom,
+- enlarged hit targets,
+- progressive labels,
+- selected vessel/port focus,
+- route contrast,
+- detail below/over the chart without destroying spatial context.
 
-Used for map-selected port/vessel details and contextual actions. It must support partial and expanded states without covering all navigation context.
+Desktop may expand the chart into a large command surface with persistent fleet context.
 
-### Event card
+No third-party tiles or tracking services are required for the MVP; original/local chart rendering is preferred.
 
-Consequence-first wording: what happened, what changes, what choices exist. If there is no choice, present it as a resolved operational event rather than fake interactivity.
+## 9. Harbour manoeuvre
 
-### Confirmation dialog
+Harbour is an immersive focused mode. Spatial visibility takes precedence over application chrome.
 
-Reserve for irreversible, high-cost, or campaign-threatening actions; do not overuse.
+- engine and rudder are distinct,
+- actual speed and current state remain visible,
+- neutral/stop is immediately reachable,
+- controls do not obscure berth or bow/stern awareness,
+- collision/grounding/success use visual + textual feedback,
+- viewport rotation does not reset the manoeuvre.
 
-## 9. World map
+The harbour should feel like a bridge control surface rather than a form.
 
-The map is an operational surface, not decorative cartography.
+## 10. Interaction and accessibility
 
-On phone:
-
-- touch pan and pinch zoom are mandatory;
-- port/vessel hit areas must exceed the visible marker size;
-- persistent labels are aggressively reduced at low zoom;
-- selected route/vessel gets clear focus;
-- vessel/port detail opens in a bottom sheet;
-- a Fleet/Attention filter must be available once density increases;
-- the user must be able to return from detail to the exact previous map state.
-
-Desktop may add a persistent fleet panel.
-
-## 10. Harbour manoeuvre
-
-The harbour surface prioritises spatial visibility and large tactile controls.
-
-Mobile controls:
-
-- engine/throttle and rudder are distinct control groups;
-- current command and actual movement/speed must both be visible;
-- controls must not obscure the docking target or vessel bow/stern awareness;
-- a neutral/stop action is immediately reachable;
-- collision, grounding, shallow water, and docking success use visual + textual/haptic-capable feedback;
-- orientation changes must not reset manoeuvre state.
-
-Touch handling must use pointer/touch-safe input and prevent accidental browser scrolling/zooming inside the active manoeuvre area while preserving accessibility outside it.
+- Critical touch target minimum 44×44 CSS px; 48 px preferred.
+- No critical action depends on hover, right-click or pixel-precise dragging.
+- Irreversible/high-cost financial actions require explicit confirmation.
+- Visible keyboard focus on desktop.
+- WCAG-oriented contrast for text and controls.
+- Respect `prefers-reduced-motion`.
+- No state communicated by color alone.
+- Canvas/SVG spatial surfaces expose essential state through adjacent DOM UI.
 
 ## 11. Motion
 
-Motion should communicate state, not decorate it. Use restrained transitions for route progress, panel changes, attention, arrival, and financial settlement. Respect `prefers-reduced-motion` and provide equivalent non-motion state cues.
+Motion communicates navigation, voyage progress, arrival and settlement. It must be restrained. Avoid decorative dashboard animation, bouncing cards, animated counters and game-like noise that competes with operational information.
 
-## 12. Accessibility
+## 12. Era-sensitive art direction
 
-- WCAG-oriented contrast for text and critical controls.
-- Semantic HTML for non-canvas UI.
-- Visible focus states for keyboard users.
-- Accessible labels for icon-only controls.
-- Keyboard support for desktop-enhanced flows.
-- Reduced motion support.
-- Do not encode state by color alone.
-- Canvas/WebGL surfaces must expose essential state and actions through adjacent DOM UI where practical.
+The interface identity remains consistent across the campaign; do not reskin the whole application every era. Era changes may subtly alter supporting accents, terminology and technical annotations, while preserving usability and brand continuity.
 
-## 13. Content style
+Historical inspiration must remain balanced and fictionalized where needed. Future eras should feel plausible rather than science-fictional unless the product strategy is explicitly changed.
 
-Copy is concise, operational, and specific. Prefer “Fuel cost +€12,400” to vague text such as “This may be expensive.” Use maritime terminology where it improves authenticity, but introduce specialist terms through context rather than requiring prior knowledge.
+## 13. Asset rules
 
-## 14. Asset rules
+All vessel illustrations, port icons, chart styling, logos and interface graphics must be original or appropriately licensed. Real port names and factual geography are acceptable with suitable sources. No historical Ports of Call assets may be reused.
 
-All ship illustrations, port icons, map styling, logos, and interface graphics must be original or appropriately licensed. Real port names and geographic data must use licensable factual sources. No historical Ports of Call assets may be reused.
+## 14. Verification gate
 
-## 15. Production verification
+Every production UI release is checked at minimum at:
 
-Every production UI slice must be checked at minimum at:
-
-- 360 × 800 portrait,
-- 390 × 844 portrait,
-- 430 × 932 portrait,
+- 360×800 portrait,
+- 390×844 portrait,
+- 430×932 portrait,
 - representative tablet portrait/landscape,
 - desktop ≥1280 px.
 
-Required checks include touch-target size, horizontal overflow, text clipping, safe-area handling, modal/sheet reachability, keyboard focus on desktop, reduced-motion behavior, and map/harbour interaction on touch.
+Verify touch target size, horizontal overflow, text clipping, safe areas, modal reachability, keyboard focus, reduced motion, map/harbour interaction and Level-1 decision clarity.
 
-## 16. Design acceptance gate
+## 15. Design acceptance
 
-A screen is not considered complete merely because it works on desktop. The phone portrait implementation is the baseline acceptance version; wider layouts are enhancements. Any later component or feature that regresses the mobile core loop fails the design gate.
+A screen is not complete because it functions or because every data point is visible. It passes only if:
+
+1. the primary decision is visually obvious,
+2. the phone workflow is complete,
+3. the screen belongs unmistakably to Ocean Trader rather than a generic app template,
+4. operational data remains legible and auditable,
+5. atmospheric styling never obscures game state or touch interaction.
