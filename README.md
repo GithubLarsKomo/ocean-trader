@@ -1,6 +1,6 @@
 # Ocean Trader
 
-Browser-based maritime shipping simulation. The repository contains the current Wayfinder evidence and the proposed production specification for **Ocean Trader**.
+Mobile-first browser-based maritime shipping simulation. The repository contains the current Wayfinder evidence and the proposed production specification for **Ocean Trader**.
 
 ## Status
 
