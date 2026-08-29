@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Ocean Trader mark">
+<defs><linearGradient id="g" x1="16" y1="14" x2="80" y2="82" gradientUnits="userSpaceOnUse"><stop stop-color="#f0c66a"/><stop offset="1" stop-color="#b77b2f"/></linearGradient></defs>
+<rect x="8" y="8" width="80" height="80" rx="4" fill="#071923" stroke="url(#g)" stroke-width="2"/>
+<path d="M48 16 55 39 80 48 55 56 48 80 41 56 16 48 41 39Z" fill="none" stroke="url(#g)" stroke-width="2.6" stroke-linejoin="round"/>
+<circle cx="48" cy="48" r="20" fill="#0b2c39" stroke="#77cadc" stroke-width="2"/>
+<path d="M30 52c8-8 15-9 22-4 6 4 11 4 17-2" fill="none" stroke="#77cadc" stroke-width="4" stroke-linecap="round"/>
+<path d="M31 61c8-6 15-7 22-2 6 4 11 4 16 0" fill="none" stroke="#d5a54f" stroke-width="3" stroke-linecap="round"/>
+<circle cx="48" cy="48" r="4" fill="#f3dfaa"/>
+</svg>
