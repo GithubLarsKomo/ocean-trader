@@ -1,7 +1,7 @@
 import React,{useEffect,useMemo,useState}from'react';
 import{createRoot}from'react-dom/client';
 import{acceptContract,advanceAllVoyagesDay,attentionCount,availableContractsForVessel,companyValue,contractForVoyage,createInitialState,currency,ports,voyageForVessel,type GameState,type Vessel}from'./domain';
-import{loadState,saveState,SAVE_KEY}from'./storage';
+import{clearState,loadState,saveState}from'./storage';
 import'./styles.css';
 
 type Tab='market'|'fleet'|'company';
@@ -10,7 +10,7 @@ function App(){
  useEffect(()=>saveState(localStorage,state),[state]);
  const vessel=useMemo(()=>state.vessels.find(v=>v.id===selected)??state.vessels[0],[state.vessels,selected]); const voyage=vessel?voyageForVessel(state,vessel.id):null; const contract=voyage?contractForVoyage(state,voyage):null;
  function start(vesselId:string,contractId:string){setState(s=>acceptContract(s,vesselId,contractId));setSelected(vesselId);setTab('fleet');}
- function reset(){if(!confirm('Lokalen Spielstand wirklich löschen und neu beginnen?'))return;localStorage.removeItem(SAVE_KEY);const fresh=createInitialState();setState(fresh);setSelected(fresh.vessels[0].id);setTab('fleet');}
+ function reset(){if(!confirm('Lokalen Spielstand wirklich löschen und neu beginnen?'))return;clearState(localStorage);const fresh=createInitialState();setState(fresh);setSelected(fresh.vessels[0].id);setTab('fleet');}
  return <div className="app-shell"><header className="topbar"><div><span className="eyebrow">FLEET COMMAND</span><h1>Ocean Trader</h1></div><div className="date-pill">{state.campaignDate}</div></header><main>
  <section className="summary-strip" aria-label="Unternehmensübersicht"><Summary label="Cash" value={currency(state.cash)}/><Summary label="Aktiv" value={`${state.voyages.length}/${state.vessels.length}`}/><Summary label="Achtung" value={`${attentionCount(state)}`}/></section>
  {tab==='fleet'&&<section><div className="section-head"><div><span className="eyebrow">FLEET</span><h2>{state.vessels.length} Schiffe · {state.voyages.length} auf See</h2></div><button className="compact-action" disabled={!state.voyages.length} onClick={()=>setState(advanceAllVoyagesDay)}>+ 1 Tag</button></div><div className="fleet-list">{state.vessels.map(v=><FleetRow key={v.id} state={state} vessel={v} selected={v.id===vessel?.id} onClick={()=>setSelected(v.id)}/>)}</div>{vessel&&<article className="detail-card"><div className="detail-head"><div><span className="label">Ausgewählt</span><h3>{vessel.name}</h3><p>{vessel.className} · {vessel.capacityTonnes.toLocaleString('de-DE')} t</p></div><Status state={state} vessel={vessel}/></div>{voyage&&contract?<><div className="route large"><strong>{ports[contract.origin]}</strong><span>→</span><strong>{ports[contract.destination]}</strong></div><div className="progress-track"><i style={{width:`${Math.round(voyage.day/voyage.totalDays*100)}%`}}/></div><div className="voyage-grid"><Summary label="Tag" value={`${voyage.day}/${voyage.totalDays}`}/><Summary label="Fuel" value={currency(voyage.fuelCost)}/><Summary label="Zustand" value={`${vessel.condition.toFixed(1)} %`}/></div>{voyage.events.length>0&&<div className="event-box"><strong>{voyage.events.at(-1)?.title}</strong><span>{voyage.events.at(-1)?.effect}</span></div>}</>:<div className="port-ready">Bereit in <strong>{vessel.currentPort?ports[vessel.currentPort]:'—'}</strong>. Passende Fracht im Markt wählen.</div>}</article>}</section>}
