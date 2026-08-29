@@ -9,6 +9,7 @@
 - `SPEC.md`: **OT-SPEC-001 v1.1 APPROVED**
 - VI-001: implemented — persistent single-ship trade loop
 - VI-002: implemented — mobile multi-ship fleet management with independent voyages and save schema v2
+- VI-003: implemented — interactive mobile world map with 20 real ports, fleet positions, routes, ETA, selection, pan and zoom
 - `PRODUCT.md`: approved product context
 - `DESIGN.md`: approved mobile-first design/interaction contract
 - `docs/vertical-issues.json`: implementation-ready vertical backlog
@@ -18,9 +19,9 @@
 
 ## Production sequence
 
-Current production focus has advanced through **VI-002**. The next vertical product slice is **VI-003 — interactive mobile world map**, while VI-004 harbour manoeuvring remains an independent parallel slice after the fleet foundation.
+Current production focus has advanced through **VI-003**. The next independent vertical product slice is **VI-004 — touch-first harbour manoeuvring**. It builds on the fleet foundation without coupling harbour physics to the React UI.
 
-`VI-001 → VI-002 → {VI-003, VI-004} → VI-005 → {VI-006, VI-007} → VI-008`
+`VI-001 → VI-002 → VI-003 → VI-004 → VI-005 → {VI-006, VI-007} → VI-008`
 
 ## Development
 
