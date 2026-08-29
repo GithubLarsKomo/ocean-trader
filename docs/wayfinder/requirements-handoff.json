@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "project": "ocean-trader",
+  "productName": "Ocean Trader",
+  "specId": "OT-SPEC-001",
+  "status": "awaiting-user-approval",
+  "technicalEvidence": [
+    {"id": "P1", "status": "smoke-pass-human-evaluation-pending"},
+    {"id": "P2", "status": "smoke-pass-human-evaluation-pending"},
+    {"id": "P3", "status": "smoke-pass-human-evaluation-pending"}
+  ],
+  "blocked": [],
+  "normativeSpec": "SPEC.md",
+  "routingTarget": "spec-to-vertical-issues-after-explicit-approval"
+}
