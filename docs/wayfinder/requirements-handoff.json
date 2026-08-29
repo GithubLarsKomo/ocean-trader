@@ -3,13 +3,20 @@
   "project": "ocean-trader",
   "productName": "Ocean Trader",
   "specId": "OT-SPEC-001",
-  "status": "awaiting-user-approval",
+  "specVersion": "1.1",
+  "status": "approved-and-sliced",
+  "approvalDate": "2026-08-29",
   "technicalEvidence": [
-    {"id": "P1", "status": "smoke-pass-human-evaluation-pending"},
-    {"id": "P2", "status": "smoke-pass-human-evaluation-pending"},
-    {"id": "P3", "status": "smoke-pass-human-evaluation-pending"}
+    {"id": "P1", "status": "smoke-pass-human-calibration-pending"},
+    {"id": "P2", "status": "smoke-pass-human-calibration-pending"},
+    {"id": "P3", "status": "smoke-pass-human-calibration-pending"}
   ],
+  "confirmedProductContext": "PRODUCT.md",
+  "confirmedDesignContext": "DESIGN.md",
+  "decisionRegister": "docs/wayfinder/decision-register.json",
+  "verticalIssues": "docs/vertical-issues.json",
+  "dependencyOrder": "docs/dependency-order.json",
   "blocked": [],
-  "normativeSpec": "SPEC.md",
-  "routingTarget": "spec-to-vertical-issues-after-explicit-approval"
+  "nextIssue": "VI-001",
+  "routingTarget": "production-implementation"
 }
