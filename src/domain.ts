@@ -1,4 +1,5 @@
 import { SHIP_CLASSES, bunkerPrice, createShipMarket, fuelPerDay, repairAvailable, repairCost, vesselFuelCapacity, vesselMarketValue } from './economy';
+import { FINANCING_OFFERS, assessFinancingRisk, createLoan, nextInstallment, offerById, outstandingDebt, type FinanceRiskAssessment, type Loan } from './finance';
 
 export type PortId = 'HAM'|'RTM'|'LON'|'ALG'|'NYC'|'SAV'|'MIA'|'STS'|'BUE'|'CPT'|'DUR'|'DXB'|'BOM'|'SIN'|'JKT'|'HKG'|'SHA'|'BUS'|'TYO'|'SYD';
 export type ShipClassId = 'coaster'|'handysize'|'feeder'|'panamax';
@@ -7,11 +8,11 @@ export interface Vessel { id:string; name:string; classId:ShipClassId; className
 export interface ShipOffer { id:string; port:PortId; askingPrice:number; vessel:Vessel; }
 export interface VoyageEvent { day:number; title:string; effect:string; }
 export interface Voyage { id:string; vesselId:string; contractId:string; day:number; totalDays:number; fuelCost:number; maintenanceCost:number; eventCost:number; seed:number; events:VoyageEvent[]; arrivalPending?:boolean; }
-export interface GameState { schemaVersion:3; campaignDate:string; cash:number; reputation:number; vessels:Vessel[]; contracts:Contract[]; voyages:Voyage[]; shipMarket:ShipOffer[]; completedContracts:string[]; transactionLog:string[]; }
+export interface GameState { schemaVersion:4; campaignDate:string; cash:number; reputation:number; vessels:Vessel[]; contracts:Contract[]; voyages:Voyage[]; shipMarket:ShipOffer[]; loans:Loan[]; completedContracts:string[]; transactionLog:string[]; }
 
 export const ports:Record<PortId,string>={HAM:'Hamburg',RTM:'Rotterdam',LON:'London Gateway',ALG:'Algeciras',NYC:'New York',SAV:'Savannah',MIA:'Miami',STS:'Santos',BUE:'Buenos Aires',CPT:'Cape Town',DUR:'Durban',DXB:'Jebel Ali',BOM:'Mumbai',SIN:'Singapore',JKT:'Jakarta',HKG:'Hong Kong',SHA:'Shanghai',BUS:'Busan',TYO:'Tokyo',SYD:'Sydney'};
 
-export function createInitialState():GameState{return{schemaVersion:3,campaignDate:'1970-01-05',cash:420_000,reputation:50,vessels:[
+export function createInitialState():GameState{return{schemaVersion:4,campaignDate:'1970-01-05',cash:420_000,reputation:50,vessels:[
  {id:'ot-vessel-001',name:'MS Pioneer',classId:'handysize',className:'Handysize',builtYear:1963,capacityTonnes:18_000,speedKnots:17,condition:84,fuelCapacityTonnes:1_050,fuelTonnes:820,currentPort:'HAM'},
  {id:'ot-vessel-002',name:'Baltic Star',classId:'coaster',className:'Coaster',builtYear:1967,capacityTonnes:8_000,speedKnots:15,condition:91,fuelCapacityTonnes:620,fuelTonnes:540,currentPort:'RTM'},
  {id:'ot-vessel-003',name:'Atlantic Spirit',classId:'handysize',className:'Handysize',builtYear:1965,capacityTonnes:18_000,speedKnots:17,condition:87,fuelCapacityTonnes:1_050,fuelTonnes:760,currentPort:'NYC'}
@@ -23,7 +24,7 @@ export function createInitialState():GameState{return{schemaVersion:3,campaignDa
  {id:'C-RTM-HAM-001',origin:'RTM',destination:'HAM',cargo:'Konsumgüter',tonnes:4_200,payout:59_000,days:2,deadlineDays:4},
  {id:'C-NYC-HAM-001',origin:'NYC',destination:'HAM',cargo:'Industriegüter',tonnes:11_000,payout:231_000,days:8,deadlineDays:12},
  {id:'C-NYC-RTM-001',origin:'NYC',destination:'RTM',cargo:'Papierprodukte',tonnes:8_000,payout:194_000,days:7,deadlineDays:10}
-],voyages:[],shipMarket:createShipMarket(),completedContracts:[],transactionLog:['Kampagne gestartet · Startkapital €420.000']};}
+],voyages:[],shipMarket:createShipMarket(),loans:[],completedContracts:[],transactionLog:['Kampagne gestartet · Startkapital €420.000']};}
 
 export function voyageForVessel(state:GameState,vesselId:string){return state.voyages.find(v=>v.vesselId===vesselId)??null;}
 export function contractForVoyage(state:GameState,voyage:Voyage){return state.contracts.find(c=>c.id===voyage.contractId)??null;}
@@ -42,9 +43,15 @@ export function repairVessel(state:GameState,vesselId:string,targetCondition:num
 export function buyShip(state:GameState,offerId:string):GameState{const offer=state.shipMarket.find(o=>o.id===offerId);if(!offer)throw new Error('Offer not found.');if(offer.askingPrice>state.cash)throw new Error('Insufficient cash.');const vessel={...offer.vessel,id:`owned-${offer.vessel.id}-${state.vessels.length+1}`};return{...state,cash:state.cash-offer.askingPrice,vessels:[...state.vessels,vessel],shipMarket:state.shipMarket.filter(o=>o.id!==offerId),transactionLog:[`${vessel.name} gekauft · ${ports[offer.port]} · ${currency(offer.askingPrice)}`,...state.transactionLog]};}
 export function sellVessel(state:GameState,vesselId:string):GameState{if(state.vessels.length<=1)throw new Error('Cannot sell last vessel.');const vessel=serviceableVessel(state,vesselId);const value=vesselMarketValue(vessel,state.campaignDate);return{...state,cash:state.cash+value,vessels:state.vessels.filter(v=>v.id!==vesselId),transactionLog:[`${vessel.name} verkauft · ${currency(value)}`,...state.transactionLog]};}
 
-export function companyValue(state:GameState){return state.cash+state.vessels.reduce((sum,v)=>sum+vesselMarketValue(v,state.campaignDate),0);}
-export function attentionCount(state:GameState){return state.vessels.filter(v=>v.condition<80||v.fuelTonnes<vesselFuelCapacity(v)*.25||voyageForVessel(state,v.id)?.arrivalPending).length;}
+export function takeLoan(state:GameState,offerId:string):GameState{const offer=offerById(offerId);if(!offer)throw new Error('Financing offer not found.');if(state.loans.length>=3)throw new Error('Maximum of three active loans reached.');if(state.loans.some(l=>l.offerId===offerId))throw new Error('This financing product is already active.');const loan=createLoan(offer,state.loans.length+1);return{...state,cash:state.cash+loan.principal,loans:[...state.loans,loan],transactionLog:[`${loan.name} aufgenommen · Auszahlung ${currency(loan.principal)} · Rückzahlung ${currency(loan.totalRepayment)}`,...state.transactionLog]};}
+export function repayLoanInstallment(state:GameState,loanId:string):GameState{const loan=state.loans.find(l=>l.id===loanId);if(!loan)throw new Error('Loan not found.');const payment=nextInstallment(loan);if(payment<=0)throw new Error('Loan already repaid.');if(payment>state.cash)throw new Error('Insufficient cash for installment.');const balance=Math.max(0,loan.balance-payment),paymentsMade=loan.paymentsMade+1;const loans=balance===0?state.loans.filter(l=>l.id!==loanId):state.loans.map(l=>l.id===loanId?{...l,balance,paymentsMade}:l);return{...state,cash:state.cash-payment,loans,transactionLog:[`${loan.name} · Rate ${paymentsMade}/${loan.installments} · ${currency(payment)}${balance===0?' · vollständig getilgt':''}`,...state.transactionLog]};}
+export function financingRisk(state:GameState,offerId:string):FinanceRiskAssessment{const offer=offerById(offerId);if(!offer)throw new Error('Financing offer not found.');return assessFinancingRisk(state.cash,state.vessels.length,state.loans,offer);}
+export function totalDebt(state:GameState){return outstandingDebt(state.loans);}
+export function companyValue(state:GameState){return state.cash+state.vessels.reduce((sum,v)=>sum+vesselMarketValue(v,state.campaignDate),0)-totalDebt(state);}
+export function attentionCount(state:GameState){return state.vessels.filter(v=>v.condition<80||v.fuelTonnes<vesselFuelCapacity(v)*.25||voyageForVessel(state,v.id)?.arrivalPending).length+(state.loans.some(l=>nextInstallment(l)>state.cash)?1:0);}
 export function currency(value:number){return new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(value);}
 export { SHIP_CLASSES, bunkerPrice, repairAvailable, repairCost, vesselFuelCapacity, vesselMarketValue } from './economy';
+export { FINANCING_OFFERS, nextInstallment, previewLoan } from './finance';
+export type { Loan } from './finance';
 function hashSeed(input:string){let h=2166136261;for(const ch of input)h=Math.imul(h^ch.charCodeAt(0),16777619);return h>>>0;}
 function seededUnit(seed:number){let x=seed>>>0;x^=x<<13;x^=x>>>17;x^=x<<5;return(x>>>0)/4294967295;}
