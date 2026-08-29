@@ -1,26 +1,12 @@
-import type { GameState } from './domain';
+import type { GameState, Vessel, Voyage } from './domain';
 
-export const SAVE_KEY = 'ocean-trader.save.v1';
+export const SAVE_KEY='ocean-trader.save.v2';
+const LEGACY_KEY='ocean-trader.save.v1';
 
-export function serializeState(state: GameState): string {
-  return JSON.stringify(state);
-}
+type LegacyState={schemaVersion:1;campaignDate:string;cash:number;reputation:number;vessel:Vessel;contracts:GameState['contracts'];activeVoyage:(Omit<Voyage,'vesselId'>)|null;completedContracts:string[];transactionLog:string[]};
 
-export function parseState(raw: string): GameState | null {
-  try {
-    const value = JSON.parse(raw) as Partial<GameState>;
-    if (value.schemaVersion !== 1 || typeof value.cash !== 'number' || !value.vessel || !Array.isArray(value.contracts)) return null;
-    return value as GameState;
-  } catch {
-    return null;
-  }
-}
-
-export function loadState(storage: Pick<Storage, 'getItem'>): GameState | null {
-  const raw = storage.getItem(SAVE_KEY);
-  return raw ? parseState(raw) : null;
-}
-
-export function saveState(storage: Pick<Storage, 'setItem'>, state: GameState): void {
-  storage.setItem(SAVE_KEY, serializeState(state));
-}
+export function serializeState(state:GameState){return JSON.stringify(state);}
+export function parseState(raw:string):GameState|null{try{const value=JSON.parse(raw) as Partial<GameState>;if(value.schemaVersion!==2||typeof value.cash!=='number'||!Array.isArray(value.vessels)||!Array.isArray(value.voyages)||!Array.isArray(value.contracts))return null;return value as GameState;}catch{return null;}}
+function migrateLegacy(raw:string):GameState|null{try{const old=JSON.parse(raw) as Partial<LegacyState>;if(old.schemaVersion!==1||!old.vessel||!Array.isArray(old.contracts)||typeof old.cash!=='number')return null;return {schemaVersion:2,campaignDate:old.campaignDate??'1970-01-05',cash:old.cash,reputation:old.reputation??50,vessels:[old.vessel],contracts:old.contracts,voyages:old.activeVoyage?[{...old.activeVoyage,vesselId:old.vessel.id}]:[],completedContracts:old.completedContracts??[],transactionLog:['Spielstand auf Fleet Schema v2 migriert',...(old.transactionLog??[])]};}catch{return null;}}
+export function loadState(storage:Pick<Storage,'getItem'|'setItem'>):GameState|null{const current=storage.getItem(SAVE_KEY);if(current)return parseState(current);const legacy=storage.getItem(LEGACY_KEY);if(!legacy)return null;const migrated=migrateLegacy(legacy);if(migrated)storage.setItem(SAVE_KEY,serializeState(migrated));return migrated;}
+export function saveState(storage:Pick<Storage,'setItem'>,state:GameState){storage.setItem(SAVE_KEY,serializeState(state));}

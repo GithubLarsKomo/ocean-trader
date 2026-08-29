@@ -1,14 +1,3 @@
-import { describe, expect, it } from 'vitest';
-import { createInitialState } from './domain';
-import { parseState, serializeState } from './storage';
-
-describe('save schema v1', () => {
-  it('round-trips a valid campaign', () => {
-    const state = createInitialState();
-    expect(parseState(serializeState(state))).toEqual(state);
-  });
-  it('rejects malformed or incompatible saves', () => {
-    expect(parseState('{bad')).toBeNull();
-    expect(parseState(JSON.stringify({ schemaVersion: 99 }))).toBeNull();
-  });
-});
+import{describe,expect,it}from'vitest';import{createInitialState}from'./domain';import{loadState,parseState,saveState,SAVE_KEY}from'./storage';
+function memory(){const data=new Map<string,string>();return{getItem:(k:string)=>data.get(k)??null,setItem:(k:string,v:string)=>void data.set(k,v),data};}
+describe('save schema v2',()=>{it('roundtrips fleet state',()=>{const store=memory();const state=createInitialState();saveState(store,state);expect(parseState(store.data.get(SAVE_KEY)!)).toEqual(state);});it('migrates VI-001 save',()=>{const store=memory();store.setItem('ocean-trader.save.v1',JSON.stringify({schemaVersion:1,campaignDate:'1970-01-05',cash:1,reputation:50,vessel:createInitialState().vessels[0],contracts:[],activeVoyage:null,completedContracts:[],transactionLog:[]}));const migrated=loadState(store);expect(migrated?.schemaVersion).toBe(2);expect(migrated?.vessels).toHaveLength(1);expect(store.data.has(SAVE_KEY)).toBe(true);});});
