@@ -2,7 +2,7 @@ export interface Rect { x:number; y:number; width:number; height:number; }
 export interface HarbourState { x:number; y:number; heading:number; speed:number; throttle:number; rudder:number; condition:number; collisions:number; groundings:number; docked:boolean; elapsed:number; impactCooldown:number; message:string; }
 export interface HarbourInput { throttle?:number; rudder?:number; }
 
-export const HARBOUR={width:1200,height:720,berth:{x:930,y:180,width:170,height:54,heading:0},shallow:[{x:0,y:0,width:1200,height:48},{x:0,y:0,width:70,height:720},{x:0,y:640,width:1200,height:80},{x:1050,y:0,width:150,height:130}],quays:[{x:820,y:105,width:340,height:42},{x:820,y:247,width:340,height:42},{x:1120,y:105,width:40,height:184}],breakwaters:[{x:330,y:450,width:260,height:34},{x:330,y:450,width:34,height:170}]};
+export const HARBOUR={width:1200,height:720,berth:{x:930,y:180,width:170,height:54,w:170,h:54,heading:0},shallow:[{x:0,y:0,width:1200,height:48},{x:0,y:0,width:70,height:720},{x:0,y:640,width:1200,height:80},{x:1050,y:0,width:150,height:130}],quays:[{x:820,y:105,width:340,height:42},{x:820,y:247,width:340,height:42},{x:1120,y:105,width:40,height:184}],breakwaters:[{x:330,y:450,width:260,height:34},{x:330,y:450,width:34,height:170}]};
 
 export function initialHarbourState(condition=100):HarbourState{return{x:160,y:520,heading:-0.08,speed:0,throttle:0,rudder:0,condition,collisions:0,groundings:0,docked:false,elapsed:0,impactCooldown:0,message:'Lege langsam im markierten Liegeplatz an.'};}
 export const clamp=(v:number,min:number,max:number)=>Math.max(min,Math.min(max,v));
