@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "product": "Ocean Trader",
+  "specId": "OT-SPEC-001",
+  "specVersion": "1.1",
+  "status": "approved",
+  "approvalDate": "2026-08-29",
+  "decisions": [
+    {"id":"DEC-001","decision":"Modern independent reinterpretation, not a 1:1 clone","status":"confirmed"},
+    {"id":"DEC-002","decision":"Long-running campaign with short sessions","status":"confirmed"},
+    {"id":"DEC-003","decision":"Deeper but approachable economy","status":"confirmed"},
+    {"id":"DEC-004","decision":"Harbour manoeuvres are an important feature","status":"confirmed"},
+    {"id":"DEC-005","decision":"Use real ports and geography","status":"confirmed"},
+    {"id":"DEC-006","decision":"Use realistically inspired fictional ship types","status":"confirmed"},
+    {"id":"DEC-007","decision":"Campaign may span roughly 1970 into the future","status":"confirmed"},
+    {"id":"DEC-008","decision":"Multiplayer deferred beyond MVP","status":"confirmed"},
+    {"id":"DEC-009","decision":"Easy to learn, hard to master","status":"confirmed"},
+    {"id":"DEC-010","decision":"Modern stylised nautical visual direction with original 2D ships","status":"confirmed"},
+    {"id":"DEC-011","decision":"Real distances and ports with gameplay-modelled economy","status":"confirmed"},
+    {"id":"DEC-012","decision":"Throwaway prototypes precede production implementation","status":"confirmed"},
+    {"id":"DEC-013","decision":"Mobile First: smartphone is a first-class MVP target; tablet/desktop are adaptive enhancements","status":"confirmed"}
+  ],
+  "deferred": [
+    "exact campaign start year",
+    "exact ship classes",
+    "cargo catalog",
+    "financing constants",
+    "map/rendering libraries",
+    "optional multiplayer",
+    "optional AI/ML gameplay features"
+  ]
+}
