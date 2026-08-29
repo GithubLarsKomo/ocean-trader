@@ -16,6 +16,7 @@
 - VI-007: implemented — deterministic local market cycles, cargo compatibility, port fees, route risk, expected-margin ranking, empty repositioning and save schema v5
 - VI-008: implemented — six campaign eras from 1970 into the future, era-dependent economics, technology unlocks, strategic era progression and save schema v6
 - Design Pass 1: implemented — maritime command-deck / shipping-ledger / nautical-chart visual system replacing the generic app-card aesthetic
+- Design Pass 2: implemented — original Ocean Trader compass-wave mark, four class-specific vessel illustrations, hybrid rendered world-chart/harbour stages, cargo art and port-operations imagery wired into mobile and desktop views
 - `PRODUCT.md` / `DESIGN.md`: approved product and binding interaction/visual context
 - `prototypes/wayfinder/`: disposable evidence prototypes; not production code
 
@@ -41,9 +42,10 @@ Ocean Trader should feel like a maritime simulation rather than a SaaS dashboard
 
 - maritime command deck,
 - shipping ledger / manifest,
-- nautical chart.
+- nautical chart,
+- original illustrated maritime context for ships, ports, cargo and manoeuvring.
 
-Mobile portrait remains the baseline. Tablet and desktop enhance the same task model rather than replacing it with a separate desktop dashboard.
+The current hybrid renderer keeps map, route, vessel and harbour simulation state live while placing original local art beneath or beside those operational layers. Mobile portrait remains the baseline. Tablet and desktop enhance the same task model rather than replacing it with a separate desktop dashboard.
 
 ## Development
 
