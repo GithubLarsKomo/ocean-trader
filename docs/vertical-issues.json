@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 1,
+  "product": "Ocean Trader",
+  "sourceSpec": "OT-SPEC-001 v1.1",
+  "status": "approved-for-implementation",
+  "slicingRule": "Each issue must deliver observable player value across UI, orchestration, deterministic domain logic, persistence, tests, and mobile acceptance where applicable.",
+  "issues": [
+    {
+      "id": "VI-001",
+      "title": "Start and complete a persistent mobile trade",
+      "userValue": "A player can start Ocean Trader on a phone, accept one contract, complete one voyage with one event, receive settlement, and return later to the persisted campaign.",
+      "scope": [
+        "Production TypeScript app foundation",
+        "mobile-first application shell",
+        "new campaign with one viable vessel",
+        "small port/cargo seed catalog sufficient for first route",
+        "contract list/detail/acceptance",
+        "deterministic voyage progression and seeded event",
+        "financial transaction ledger and one-time settlement",
+        "versioned local save/load",
+        "phone portrait end-to-end flow"
+      ],
+      "acceptance": [
+        "At 390x844, player completes new campaign -> contract -> voyage -> event -> settlement without desktop-only interaction.",
+        "Reload restores cash, vessel location/state, campaign time, and completed contract state.",
+        "Identical state + seed + commands produces identical domain output.",
+        "Contract cannot settle twice.",
+        "Automated unit/integration tests cover deterministic voyage, settlement, and save schema."
+      ],
+      "dependsOn": [],
+      "releaseGate": "G2",
+      "priority": 1
+    },
+    {
+      "id": "VI-002",
+      "title": "Manage an active fleet from the phone",
+      "userValue": "A player can understand several simultaneous voyages, see what needs attention, inspect a vessel, and advance time from a mobile fleet surface.",
+      "scope": [
+        "Fleet navigation surface",
+        "five simultaneous active vessels in test scenario",
+        "attention/exception prioritisation",
+        "vessel detail with route, ETA, fuel, condition, cargo",
+        "multi-vessel deterministic time advancement",
+        "save/resume of all active voyages"
+      ],
+      "acceptance": [
+        "Five active voyages remain understandable at phone portrait width without horizontal table scrolling.",
+        "Attention items are distinguishable from normal voyages without relying on color alone.",
+        "All voyages progress independently and restore correctly after reload."
+      ],
+      "dependsOn": ["VI-001"],
+      "releaseGate": "G4",
+      "priority": 2
+    },
+    {
+      "id": "VI-003",
+      "title": "Navigate the global fleet on a touch world map",
+      "userValue": "A player can use the phone map to find ports and vessels, inspect a route and ETA, and move between map and fleet context without losing place.",
+      "scope": [
+        "20+ real ports with licensed factual coordinates",
+        "touch pan and pinch zoom",
+        "vessel and port hit testing with enlarged touch targets",
+        "selected route focus",
+        "progressive label disclosure",
+        "mobile bottom-sheet port/vessel detail",
+        "fleet/map synchronized selection",
+        "map viewport state preservation"
+      ],
+      "acceptance": [
+        "Touch-only user can select vessel and port, pan, zoom, inspect ETA, and return to prior map state.",
+        "Five simultaneous routes are distinguishable on supported phone viewport.",
+        "Low zoom does not render all labels persistently."
+      ],
+      "dependsOn": ["VI-002"],
+      "releaseGate": "G4",
+      "priority": 3
+    },
+    {
+      "id": "VI-004",
+      "title": "Dock a vessel with touch controls",
+      "userValue": "A player can perform a skill-based harbour arrival on a phone and see the operational consequence return to the campaign.",
+      "scope": [
+        "production harbour simulation module",
+        "perceptible inertia",
+        "movement-dependent rudder authority",
+        "touch throttle/rudder/stop controls",
+        "collision and grounding feedback",
+        "low-speed heading-aware docking predicate",
+        "condition/financial result returned to domain",
+        "orientation-safe manoeuvre state"
+      ],
+      "acceptance": [
+        "Normal docking is achievable with touch only on supported smartphone.",
+        "Fast collision and grounding produce distinct bounded consequences.",
+        "Rotating viewport does not reset active manoeuvre.",
+        "No browser scrolling interferes with active manoeuvre controls.",
+        "Harbour result is persisted exactly once in campaign state."
+      ],
+      "dependsOn": ["VI-001"],
+      "releaseGate": "G3",
+      "priority": 4
+    },
+    {
+      "id": "VI-005",
+      "title": "Buy, sell, refuel, and maintain ships",
+      "userValue": "A player can turn voyage profit into fleet decisions and manage vessel readiness rather than only repeating contracts.",
+      "scope": [
+        "at least four materially different ship classes",
+        "ship market buy/sell",
+        "fuel capacity and bunker cost",
+        "condition and maintenance planning",
+        "repair capability by port",
+        "market value affected by age/condition",
+        "mobile comparison and confirmation flows"
+      ],
+      "acceptance": [
+        "Player can compare ship alternatives on phone without desktop table dependency.",
+        "Buying/selling and repair/refuel transactions are attributable in ledger.",
+        "Condition materially affects at least cost, reliability, resale, or performance."
+      ],
+      "dependsOn": ["VI-001", "VI-002"],
+      "releaseGate": "G4",
+      "priority": 5
+    },
+    {
+      "id": "VI-006",
+      "title": "Finance fleet growth and understand leverage",
+      "userValue": "A player can finance a vessel, understand repayment risk before committing, and see debt affect company value and future choices.",
+      "scope": [
+        "loan/mortgage offer",
+        "principal, financing cost, schedule, and default consequence",
+        "payment transactions",
+        "debt reflected in company value",
+        "mobile pre-commitment summary",
+        "insolvency warning for directly calculable dangerous actions"
+      ],
+      "acceptance": [
+        "Player can explain total immediate and scheduled commitment from the confirmation screen.",
+        "Debt and repayments survive save/load.",
+        "Company value includes liabilities correctly.",
+        "A financing transaction cannot be applied twice."
+      ],
+      "dependsOn": ["VI-005"],
+      "releaseGate": "G4",
+      "priority": 6
+    },
+    {
+      "id": "VI-007",
+      "title": "Make route and market choices matter",
+      "userValue": "A player sees different cargo/port opportunities and must trade margin, deadline, fuel, condition, repositioning, and risk instead of following one dominant route.",
+      "scope": [
+        "local market state",
+        "cargo compatibility",
+        "port fees and bunker variation",
+        "empty repositioning",
+        "bounded market cycles/supply-demand variation",
+        "contract comparison explanation",
+        "balance scenario tests"
+      ],
+      "acceptance": [
+        "At least three test scenarios prefer different choices under different fleet/market states.",
+        "No single seeded route/cargo dominates the defined balance scenarios.",
+        "Expected major costs and risk remain visible before commitment."
+      ],
+      "dependsOn": ["VI-005"],
+      "releaseGate": "G4",
+      "priority": 7
+    },
+    {
+      "id": "VI-008",
+      "title": "Progress the company through shipping eras",
+      "userValue": "A successful campaign changes over time through new vessel technology, operating constraints, and opportunities rather than remaining a static endless loop.",
+      "scope": [
+        "campaign era/time progression",
+        "technology/class unlocks",
+        "era-dependent operating economics or constraints",
+        "historically inspired but gameplay-balanced changes",
+        "migration-safe persistence of campaign era"
+      ],
+      "acceptance": [
+        "Advancing between defined eras changes at least one strategic fleet or market decision.",
+        "Old saves migrate safely across era-data version changes.",
+        "Era progression remains understandable on mobile without encyclopedic prerequisite knowledge."
+      ],
+      "dependsOn": ["VI-006", "VI-007"],
+      "releaseGate": "post-G4 campaign depth",
+      "priority": 8
+    }
+  ]
+}
