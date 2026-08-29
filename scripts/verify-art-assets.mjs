@@ -9,7 +9,8 @@ function assertWebp(buffer,label){
   if(buffer.length<1024)throw new Error(`${label}: asset is unexpectedly small (${buffer.length} bytes)`);
   if(buffer.subarray(0,4).toString('ascii')!=='RIFF'||buffer.subarray(8,12).toString('ascii')!=='WEBP')throw new Error(`${label}: invalid WEBP signature`);
   const declared=buffer.readUInt32LE(4)+8;
-  if(declared!==buffer.length)throw new Error(`${label}: truncated WEBP (declared ${declared} bytes, actual ${buffer.length})`);
+  if(declared>buffer.length)throw new Error(`${label}: truncated WEBP (declared ${declared} bytes, actual ${buffer.length})`);
+  if(buffer.length-declared>1)throw new Error(`${label}: unexpected trailing data (${buffer.length-declared} bytes)`);
 }
 
 for(const rel of staticAssets){
