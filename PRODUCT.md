@@ -55,6 +55,16 @@ A new player should be able to complete the first profitable trade without exter
 
 Harbour manoeuvring must feel deliberate and learnable on touch, with inertia, clear throttle/rudder state, collision/grounding feedback, and reliable docking criteria.
 
+## Public Deployment and Legal Baseline
+
+- Public deployment: **yes**.
+- Legal baseline artifact: `docs/public-deployment-legal.md`.
+- Public legal surfaces: `public/impressum.html` and `public/datenschutz.html`.
+- Operator identity is completed for the current private-individual operator; unresolved placeholders must never be deployed.
+- Current application model is local-first and does not require account/backend synchronization, advertising analytics or behavioural telemetry for core play.
+- Before final production acceptance, the effective Ocean Trader deployment must verify reverse-proxy/access logging, container log rotation/retention criteria, and any additional DNS/CDN/monitoring/error-reporting/backup recipients against the privacy notice.
+- Any later introduction of accounts, cloud saves, analytics, telemetry, multiplayer, external embeds, AI APIs or non-essential cookies triggers a privacy/legal-baseline re-review before release.
+
 ## Deferred product decisions
 
 The exact campaign start year, final ship-class catalog, cargo catalog, financing constants, public marketing tagline, map rendering library, harbour rendering library, and optional future multiplayer/AI features remain implementation or later product decisions unless promoted into the SPEC.
