@@ -1,0 +1,72 @@
+/* Desktop command-center layout corrections.
+   Keep visual component styling in desktop.css; this file owns viewport geometry. */
+@media (min-width:1100px){
+  .desktop-command body{overflow:hidden}
+  .desktop-command .dc-shell{
+    width:100%;
+    height:100vh;
+    min-height:720px;
+    padding:0 14px;
+    display:grid;
+    grid-template-rows:76px minmax(0,1fr) 34px;
+    overflow:hidden;
+  }
+  .desktop-command .dc-header{
+    height:76px;
+    margin:0 -14px;
+    padding:0 22px;
+  }
+  .desktop-command .dc-grid{
+    width:100%;
+    max-width:none;
+    height:100%;
+    min-height:0;
+    margin:10px 0 0;
+    padding-bottom:10px;
+    grid-template-columns:minmax(0,1.62fr) minmax(300px,.96fr) minmax(330px,.92fr);
+    grid-template-rows:minmax(280px,1.48fr) minmax(210px,1fr) minmax(145px,.68fr);
+    gap:9px;
+  }
+  .desktop-command .dc-footer{
+    width:100%;
+    max-width:none;
+    height:34px;
+    margin:0;
+    padding:8px 3px 0;
+    align-self:end;
+  }
+  .desktop-command .dc-panel-body{min-height:0}
+  .desktop-command .dc-market .dc-panel-body,
+  .desktop-command .dc-hq .dc-panel-body{overflow:auto}
+}
+
+/* Wide monitors: spend extra width on the operational map/fleet rather than side gutters. */
+@media (min-width:1800px){
+  .desktop-command .dc-shell{padding-left:18px;padding-right:18px}
+  .desktop-command .dc-header{margin-left:-18px;margin-right:-18px;padding-left:26px;padding-right:26px}
+  .desktop-command .dc-grid{
+    grid-template-columns:minmax(0,1.7fr) minmax(340px,1fr) minmax(360px,.9fr);
+    gap:10px;
+  }
+}
+
+/* Short desktop displays need density rather than page scrolling. */
+@media (min-width:1100px) and (max-height:820px){
+  .desktop-command .dc-shell{grid-template-rows:68px minmax(0,1fr) 28px;min-height:650px}
+  .desktop-command .dc-header{height:68px}
+  .desktop-command .dc-brand h1{font-size:26px}
+  .desktop-command .dc-wheel{width:42px;height:42px}
+  .desktop-command .dc-grid{
+    margin-top:7px;
+    padding-bottom:7px;
+    grid-template-rows:minmax(235px,1.45fr) minmax(185px,1fr) minmax(125px,.64fr);
+    gap:7px;
+  }
+  .desktop-command .dc-panel>header{height:42px;padding-top:5px;padding-bottom:5px}
+  .desktop-command .dc-panel>header h2{font-size:15px}
+  .desktop-command .dc-panel-body{height:calc(100% - 42px)}
+  .desktop-command .dc-footer{height:28px;padding-top:5px}
+  .desktop-command .dc-fleet-list button{min-height:58px}
+  .desktop-command .dc-ticker button{min-height:58px}
+  .desktop-command .event{min-height:58px}
+}
