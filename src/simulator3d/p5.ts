@@ -68,7 +68,7 @@ rudder?.addEventListener('input', () => {
 soundButton?.addEventListener('click', async () => {
   if (!audio.enabled) await ensureSound()
   else {
-    audio.enabled = false
+    audio.disable()
     soundButton.classList.remove('active')
     soundButton.textContent = 'SOUND OFF'
   }
