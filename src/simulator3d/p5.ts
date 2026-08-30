@@ -2,6 +2,7 @@ import './p5.css'
 import { FIXED_DT, stepManoeuvre } from '../simulation/engine'
 import { calmEnvironment, initialManoeuvreState, type ManoeuvreInput } from '../simulation/state'
 import { loadState as simulationLoadState, VESSEL_PARAMETERS } from '../simulation/vessel-parameters'
+import { clearHarbourAttempt, loadHarbourAttempt, saveHarbourAttempt } from './attempt'
 import { loadCampaignArrival, settleCampaignArrival, simulationLoadForArrival } from './campaign'
 import { evaluateHarbourOperation, initialHarbourOperationState } from './operations'
 import { ROTTERDAM_P5 } from './rotterdam'
@@ -15,12 +16,14 @@ const arrival = vesselId ? loadCampaignArrival(localStorage, vesselId) : null
 const vessel = arrival ? VESSEL_PARAMETERS[arrival.vesselClass] : VESSEL_PARAMETERS.handysize
 const load = arrival ? simulationLoadForArrival(arrival) : simulationLoadState(vessel, .6)
 const sim = createP5Scene(canvas, ROTTERDAM_P5)
-let state = initialManoeuvreState(arrival?.initialCondition ?? 100)
-let operation = initialHarbourOperationState()
-let input: ManoeuvreInput = { throttle: 0, rudder: 0 }
+const savedAttempt = arrival ? loadHarbourAttempt(sessionStorage, arrival.vesselId) : null
+let state = savedAttempt?.state ?? initialManoeuvreState(arrival?.initialCondition ?? 100)
+let operation = savedAttempt?.operation ?? initialHarbourOperationState()
+let input: ManoeuvreInput = savedAttempt?.input ?? { throttle: 0, rudder: 0 }
 let accumulator = 0
 let previous = performance.now()
 let campaignSettled = false
+let persistenceTicks = 0
 
 const q = (selector: string) => document.querySelector<HTMLElement>(selector)
 const headingEl = q('[data-hdg]')
@@ -42,20 +45,33 @@ if (returnButton) {
 }
 
 const engineOrders: Array<[string, number]> = [
-  ['FULL ASTERN', -1], ['HALF ASTERN', -.7], ['SLOW ASTERN', -.35], ['STOP', 0],
-  ['SLOW AHEAD', .35], ['HALF AHEAD', .7], ['FULL AHEAD', 1],
+  ['FULL ASTERN', -.55], ['HALF ASTERN', -.30], ['SLOW ASTERN', -.15], ['STOP', 0],
+  ['SLOW AHEAD', .12], ['HALF AHEAD', .30], ['FULL AHEAD', .55],
 ]
+
+function persistAttempt() {
+  if (!arrival || campaignSettled) return
+  saveHarbourAttempt(sessionStorage, { version: 1, vesselId: arrival.vesselId, state, operation, input })
+}
 
 document.querySelectorAll<HTMLButtonElement>('[data-engine-order]').forEach(button => button.addEventListener('click', () => {
   const order = engineOrders.find(([name]) => name === button.dataset.engineOrder)
   if (!order || operation.docked) return
   input = { ...input, throttle: order[1] }
+  persistAttempt()
   document.querySelectorAll('[data-engine-order]').forEach(el => el.classList.remove('active'))
   button.classList.add('active')
 }))
 
 const rudder = document.querySelector<HTMLInputElement>('#rudder')
-rudder?.addEventListener('input', () => { if (!operation.docked) input = { ...input, rudder: Number(rudder.value) } })
+if (rudder) {
+  rudder.value = String(input.rudder)
+  rudder.addEventListener('input', () => {
+    if (operation.docked) return
+    input = { ...input, rudder: Number(rudder.value) }
+    persistAttempt()
+  })
+}
 
 document.querySelectorAll<HTMLButtonElement>('[data-camera]').forEach(button => button.addEventListener('click', () => {
   const camera = button.dataset.camera
@@ -66,18 +82,23 @@ document.querySelectorAll<HTMLButtonElement>('[data-camera]').forEach(button => 
 
 function reset() {
   if (campaignSettled) return
-  state = initialManoeuvreState(arrival?.initialCondition ?? 100)
-  operation = initialHarbourOperationState()
+  const retainedCondition = state.condition
+  const retainedDamage = operation.damage
+  const retainedCollisions = operation.collisions
+  state = initialManoeuvreState(retainedCondition)
+  operation = { ...initialHarbourOperationState(), damage: retainedDamage, collisions: retainedCollisions, message: retainedCollisions ? `Repositioned · ${retainedDamage.toFixed(1)}% damage retained` : 'Approach berth' }
   input = { throttle: 0, rudder: 0 }
   if (rudder) rudder.value = '0'
   document.querySelectorAll('[data-engine-order]').forEach(el => el.classList.remove('active'))
   document.querySelector<HTMLButtonElement>('[data-engine-order="STOP"]')?.classList.add('active')
+  persistAttempt()
 }
 document.querySelector<HTMLButtonElement>('[data-reset]')?.addEventListener('click', reset)
 
 function settleIfDocked() {
   if (!arrival || !operation.docked || campaignSettled) return
   settleCampaignArrival(localStorage, arrival.vesselId, state.condition)
+  clearHarbourAttempt(sessionStorage, arrival.vesselId)
   campaignSettled = true
   operation = { ...operation, message: `${arrival.vesselName} secured · campaign settlement saved` }
   if (returnButton) returnButton.disabled = false
@@ -107,6 +128,11 @@ sim.engine.runRenderLoop(() => {
       state = evaluated.state
       operation = evaluated.operation
       if (operation.docked) input = { throttle: 0, rudder: 0 }
+      persistenceTicks += 1
+      if (persistenceTicks >= 15) {
+        persistAttempt()
+        persistenceTicks = 0
+      }
     }
     accumulator -= FIXED_DT
   }
