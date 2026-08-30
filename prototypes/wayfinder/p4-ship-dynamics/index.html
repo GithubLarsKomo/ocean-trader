@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ocean Trader P4 Ship Dynamics</title>
+  <style>
+    :root{font-family:Inter,system-ui,sans-serif;color:#e8f1f3;background:#07141c}*{box-sizing:border-box}body{margin:0;padding:18px;background:#07141c}.shell{max-width:1200px;margin:auto}.head{display:flex;justify-content:space-between;gap:16px;align-items:end;margin-bottom:14px}.head h1{margin:0;font:500 28px Georgia,serif;color:#f0c66d}.head p{margin:5px 0 0;color:#91a7b0;font-size:12px}.controls{display:flex;gap:8px;flex-wrap:wrap}.controls select,.controls button{min-height:40px;border:1px solid #385966;background:#0c2632;color:#e8f1f3;padding:0 10px}.controls button{color:#efc66c}.grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(280px,1fr);gap:12px}.plot,.panel{border:1px solid #385966;background:#091d27}.plot{min-height:640px;position:relative}.plot canvas{display:block;width:100%;height:640px}.panel{padding:12px}.panel h2{font:500 18px Georgia,serif;color:#f0c66d;margin:0 0 10px}.metrics{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#294651;border:1px solid #294651}.metric{background:#0c2632;padding:9px}.metric span{display:block;color:#8fa5ad;font-size:9px;text-transform:uppercase;letter-spacing:.08em}.metric strong{display:block;margin-top:4px;font:700 13px ui-monospace,monospace}.legend{display:grid;gap:7px;margin-top:14px}.legend button{display:flex;justify-content:space-between;align-items:center;width:100%;padding:9px;border:1px solid #294651;background:#0b222d;color:#dce8eb;text-align:left}.legend i{display:inline-block;width:12px;height:12px;border-radius:50%;background:currentColor}.note{margin-top:14px;color:#91a7b0;font-size:11px;line-height:1.5}@media(max-width:780px){body{padding:10px}.head{display:block}.controls{margin-top:10px}.grid{grid-template-columns:1fr}.plot,.plot canvas{min-height:430px;height:430px}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="head"><div><h1>P4 · Ship Dynamics</h1><p>Throwaway diagnostic viewer · physics evidence, not production UI</p></div><div class="controls"><select id="benchmark"><option value="hard-turn">Hard turn</option><option value="acceleration">Acceleration</option><option value="crash-stop">Crash stop</option><option value="reverse-prop-walk">Reverse / prop walk</option><option value="wind-drift">Wind drift</option></select><select id="load"><option value="0">Empty</option><option value="0.5" selected>50% load</option><option value="1">Laden</option></select><button id="reset">Reset view</button></div></div>
+    <div class="grid"><section class="plot"><canvas id="plot"></canvas></section><aside class="panel"><h2 id="title">Benchmark</h2><div id="metrics" class="metrics"></div><div id="legend" class="legend"></div><p class="note">All tracks use the same deterministic 30 Hz simulation engine. The chart auto-scales to the selected benchmark so relative behaviour is visible. This prototype intentionally contains no Babylon.js or production harbour assets.</p></aside></div>
+  </main>
+  <script type="module" src="./viewer.ts"></script>
+</body>
+</html>
