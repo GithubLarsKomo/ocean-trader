@@ -1,6 +1,7 @@
 export type ShipAudio = {
   enabled: boolean
   enable(): Promise<void>
+  disable(): void
   setMotion(throttle: number, speed: number): void
   collision(kind: 'buoy' | 'quay'): void
   dispose(): void
@@ -46,6 +47,11 @@ export function createShipAudio(): ShipAudio {
       }
       await ctx.resume()
       api.enabled = true
+      if (master) master.gain.setTargetAtTime(.42, ctx.currentTime, .08)
+    },
+    disable() {
+      api.enabled = false
+      if (ctx && master) master.gain.setTargetAtTime(0, ctx.currentTime, .05)
     },
     setMotion(throttle, speed) {
       if (!ctx || !engineOsc || !engineGain || !washOsc || !washGain || !api.enabled) return
