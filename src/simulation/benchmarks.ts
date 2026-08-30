@@ -1,0 +1,105 @@
+import { FIXED_DT, stepManoeuvre } from './engine'
+import { calmEnvironment, initialManoeuvreState, type EnvironmentState, type ManoeuvreInput, type ManoeuvreState } from './state'
+import { loadState, VESSEL_PARAMETERS, type SimulationVesselClass, type VesselParameters } from './vessel-parameters'
+
+export type TrackPoint = Pick<ManoeuvreState, 'x' | 'y' | 'heading' | 'surge' | 'sway' | 'yawRate' | 'elapsed'>
+export type BenchmarkResult = {
+  id: string
+  vesselClass: SimulationVesselClass
+  loadRatio: number
+  duration: number
+  final: ManoeuvreState
+  track: TrackPoint[]
+  metrics: Record<string, number>
+}
+
+type Phase = { seconds: number; input: ManoeuvreInput; environment?: EnvironmentState }
+
+function runPhases(vessel: VesselParameters, loadRatio: number, phases: Phase[]): { final: ManoeuvreState; track: TrackPoint[] } {
+  let state = initialManoeuvreState()
+  const load = loadState(vessel, loadRatio)
+  const track: TrackPoint[] = []
+  let sampleClock = 0
+  for (const phase of phases) {
+    const steps = Math.round(phase.seconds / FIXED_DT)
+    for (let i = 0; i < steps; i += 1) {
+      state = stepManoeuvre(state, phase.input, vessel, load, phase.environment ?? calmEnvironment)
+      sampleClock += FIXED_DT
+      if (sampleClock >= .5 - 1e-9) {
+        track.push({ x: state.x, y: state.y, heading: state.heading, surge: state.surge, sway: state.sway, yawRate: state.yawRate, elapsed: state.elapsed })
+        sampleClock = 0
+      }
+    }
+  }
+  return { final: state, track }
+}
+
+const distance = (a: TrackPoint, b: TrackPoint) => Math.hypot(b.x - a.x, b.y - a.y)
+const maxAbs = (track: TrackPoint[], key: 'sway' | 'yawRate') => Math.max(0, ...track.map(p => Math.abs(p[key])))
+
+export function accelerationBenchmark(vesselClass: SimulationVesselClass, loadRatio = .5): BenchmarkResult {
+  const vessel = VESSEL_PARAMETERS[vesselClass]
+  const run = runPhases(vessel, loadRatio, [{ seconds: 60, input: { throttle: 1, rudder: 0 } }])
+  return { id: 'acceleration', vesselClass, loadRatio, duration: 60, ...run, metrics: { finalSurge: run.final.surge, distance: Math.hypot(run.final.x, run.final.y) } }
+}
+
+export function hardTurnBenchmark(vesselClass: SimulationVesselClass, loadRatio = .5): BenchmarkResult {
+  const vessel = VESSEL_PARAMETERS[vesselClass]
+  const run = runPhases(vessel, loadRatio, [
+    { seconds: 30, input: { throttle: .8, rudder: 0 } },
+    { seconds: 75, input: { throttle: .8, rudder: 1 } },
+  ])
+  const startTurn = run.track.find(p => p.elapsed >= 30) ?? run.track[0]
+  const afterTurn = run.track.filter(p => p.elapsed >= 30)
+  const radiusProxy = afterTurn.length ? Math.max(...afterTurn.map(p => distance(startTurn, p))) : 0
+  return { id: 'hard-turn', vesselClass, loadRatio, duration: 105, ...run, metrics: { headingChange: Math.abs(run.final.heading), radiusProxy, maxYawRate: maxAbs(run.track, 'yawRate') } }
+}
+
+export function crashStopBenchmark(vesselClass: SimulationVesselClass, loadRatio = .5): BenchmarkResult {
+  const vessel = VESSEL_PARAMETERS[vesselClass]
+  const load = loadState(vessel, loadRatio)
+  let state = initialManoeuvreState()
+  const track: TrackPoint[] = []
+  for (let i = 0; i < Math.round(45 / FIXED_DT); i += 1) state = stepManoeuvre(state, { throttle: 1, rudder: 0 }, vessel, load, calmEnvironment)
+  const stopStart = { ...state }
+  let stopTime = 0
+  let stopDistance = 0
+  let prev = { ...state }
+  const maxSteps = Math.round(180 / FIXED_DT)
+  for (let i = 0; i < maxSteps; i += 1) {
+    state = stepManoeuvre(state, { throttle: -1, rudder: 0 }, vessel, load, calmEnvironment)
+    stopTime += FIXED_DT
+    stopDistance += Math.hypot(state.x - prev.x, state.y - prev.y)
+    prev = { ...state }
+    if (i % 15 === 0) track.push({ x: state.x, y: state.y, heading: state.heading, surge: state.surge, sway: state.sway, yawRate: state.yawRate, elapsed: stopTime })
+    if (state.surge <= .05) break
+  }
+  return { id: 'crash-stop', vesselClass, loadRatio, duration: stopTime, final: state, track, metrics: { approachSurge: stopStart.surge, stopTime, stopDistance } }
+}
+
+export function reversePropWalkBenchmark(vesselClass: SimulationVesselClass, loadRatio = .5): BenchmarkResult {
+  const vessel = VESSEL_PARAMETERS[vesselClass]
+  const run = runPhases(vessel, loadRatio, [{ seconds: 45, input: { throttle: -.85, rudder: 0 } }])
+  return { id: 'reverse-prop-walk', vesselClass, loadRatio, duration: 45, ...run, metrics: { headingChange: Math.abs(run.final.heading), lateralOffset: Math.abs(run.final.y), maxYawRate: maxAbs(run.track, 'yawRate') } }
+}
+
+export function windDriftBenchmark(vesselClass: SimulationVesselClass, loadRatio = .5): BenchmarkResult {
+  const vessel = VESSEL_PARAMETERS[vesselClass]
+  const environment = { ...calmEnvironment, windY: .12 }
+  const run = runPhases(vessel, loadRatio, [{ seconds: 90, input: { throttle: 0, rudder: 0 }, environment }])
+  return { id: 'wind-drift', vesselClass, loadRatio, duration: 90, ...run, metrics: { lateralOffset: Math.abs(run.final.y), maxSway: maxAbs(run.track, 'sway') } }
+}
+
+export function benchmarkSuite(vesselClass: SimulationVesselClass, loadRatio = .5) {
+  return [
+    accelerationBenchmark(vesselClass, loadRatio),
+    hardTurnBenchmark(vesselClass, loadRatio),
+    crashStopBenchmark(vesselClass, loadRatio),
+    reversePropWalkBenchmark(vesselClass, loadRatio),
+    windDriftBenchmark(vesselClass, loadRatio),
+  ]
+}
+
+export function compareClasses(loadRatio = .5) {
+  return (Object.keys(VESSEL_PARAMETERS) as SimulationVesselClass[]).flatMap(vesselClass => benchmarkSuite(vesselClass, loadRatio))
+}
