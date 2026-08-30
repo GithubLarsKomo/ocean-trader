@@ -10,17 +10,19 @@
 <body>
   <div class="p5-shell">
     <header class="p5-top">
-      <div class="p5-title"><small>P5 · BROWSER 3D HARBOUR</small><strong>Rotterdam Training Basin</strong></div>
-      <div class="camera-switch"><button class="active" data-camera="chase">CHASE</button><button data-camera="tactical">TACTICAL</button></div>
+      <div class="p5-title"><small>P5 · BROWSER 3D HARBOUR</small><strong>Rotterdam · Maasvlakte</strong></div>
+      <div class="top-actions"><button data-sound>SOUND OFF</button><div class="camera-switch"><button class="active" data-camera="chase">CHASE</button><button data-camera="tactical">TACTICAL</button></div></div>
     </header>
     <main class="scene-wrap">
       <canvas id="p5-canvas"></canvas>
       <div class="hud">
         <div><span>HDG</span><strong data-hdg>000°</strong></div>
         <div><span>SOG</span><strong data-sog>0.0 kn</strong></div>
-        <div><span>RUDDER</span><strong data-rudder>0°</strong></div>
+        <div><span>RUDDER</span><strong data-rudder>MIDSHIPS</strong></div>
         <div><span>ENGINE</span><strong data-engine>STOP</strong></div>
+        <div><span>HULL</span><strong data-hull>100 %</strong></div>
       </div>
+      <div class="collision-alert" data-alert>KOLLISION</div>
     </main>
     <section class="p5-controls" aria-label="Schiffssteuerung">
       <div class="engine-orders">
@@ -30,8 +32,11 @@
         <button data-engine-order="SLOW AHEAD">SLOW<br>AHEAD</button>
         <button data-engine-order="HALF AHEAD">HALF<br>AHEAD</button>
       </div>
-      <label class="helm"><span>PORT</span><input id="rudder" type="range" min="-1" max="1" value="0" step="0.05" aria-label="Ruderwinkel" /><span>STBD</span></label>
-      <div class="control-footer"><small>60 % beladener Handysize · P4-Physik @ 30 Hz</small><button class="reset" data-reset>RESET</button></div>
+      <div class="helm-row">
+        <label class="helm"><span>PORT</span><input id="rudder" type="range" min="-1" max="1" value="0" step="0.05" aria-label="Ruderwinkel" /><span>STBD</span></label>
+        <div class="rudder-indicator" aria-hidden="true"><span>RUDDER</span><div class="rudder-waterline"><i data-rudder-visual></i></div></div>
+      </div>
+      <div class="control-footer"><small>Handysize · 60 % Load · P4 physics 30 Hz · red/green buoys are solid</small><button class="reset" data-reset>RESET</button></div>
     </section>
   </div>
   <script type="module" src="/src/simulator3d/p5.ts"></script>
