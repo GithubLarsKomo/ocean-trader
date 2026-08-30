@@ -36,7 +36,7 @@ export const VESSEL_PARAMETERS: Record<SimulationVesselClass, VesselParameters> 
   },
   panamax: {
     classId: 'panamax', lengthMeters: 225, beamMeters: 32.2, lightshipTonnes: 18000, deadweightTonnes: 52000,
-    designDraftMeters: 12.0, aheadThrust: 1.92, reverseThrustFactor: .56, surgeDrag: .027, lateralDrag: .11,
+    designDraftMeters: 12.0, aheadThrust: 1.72, reverseThrustFactor: .48, surgeDrag: .027, lateralDrag: .11,
     yawDrag: .23, yawInertia: 3.15, rudderAuthority: .54, propWalk: .14, windage: 1.02,
   },
 }
