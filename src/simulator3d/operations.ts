@@ -16,6 +16,7 @@ const pointInBox = (x: number, z: number, box: { x: number; z: number; length: n
   Math.abs(x - box.x) <= box.length / 2 + margin && Math.abs(z - box.z) <= box.width / 2 + margin
 
 const angleDelta = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)))
+const distance2 = (ax: number, az: number, bx: number, bz: number) => (ax - bx) ** 2 + (az - bz) ** 2
 
 export function evaluateHarbourOperation(
   state: ManoeuvreState,
@@ -30,18 +31,28 @@ export function evaluateHarbourOperation(
   const speed = Math.hypot(state.surge, state.sway)
   const shipMargin = Math.max(1.1, vessel.beamMeters / 24)
   const hitQuay = scenario.quays.some(q => pointInBox(x, z, q, shipMargin))
+  const hitBuoy = scenario.buoys.find(b => distance2(x, z, b.x, b.z) <= (shipMargin + b.radius) ** 2)
+  const contactKind = hitQuay ? 'quay' : hitBuoy ? 'buoy' : null
 
-  if (hitQuay) {
+  if (contactKind) {
     if (operation.contactActive) {
       return {
         state: { ...previous, surge: Math.min(0, previous.surge), sway: previous.sway * .5, yawRate: previous.yawRate * .5 },
         operation,
       }
     }
-    const impact = Math.min(18, Math.max(1, speed * load.displacementTonnes / 5500))
+    const massImpact = Math.max(1, speed * load.displacementTonnes / 5500)
+    const impact = contactKind === 'quay' ? Math.min(18, massImpact) : Math.min(4, .35 + massImpact * .22)
+    const rebound = contactKind === 'quay' ? .12 : .24
     return {
-      state: { ...previous, surge: -previous.surge * .12, sway: -previous.sway * .12, yawRate: previous.yawRate * .25, condition: Math.max(0, previous.condition - impact) },
-      operation: { ...operation, contactActive: true, collisions: operation.collisions + 1, damage: operation.damage + impact, message: `Quay contact · damage ${impact.toFixed(1)}%` },
+      state: { ...previous, surge: -previous.surge * rebound, sway: -previous.sway * rebound, yawRate: previous.yawRate * .3, condition: Math.max(0, previous.condition - impact) },
+      operation: {
+        ...operation,
+        contactActive: true,
+        collisions: operation.collisions + 1,
+        damage: operation.damage + impact,
+        message: contactKind === 'quay' ? `Quay contact · damage ${impact.toFixed(1)}%` : `Navigation buoy struck · damage ${impact.toFixed(1)}%`,
+      },
     }
   }
 
