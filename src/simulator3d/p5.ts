@@ -22,7 +22,7 @@ const savedAttempt = arrival ? loadHarbourAttempt(sessionStorage, arrival.vessel
 let state = savedAttempt?.state ?? initialManoeuvreState(arrival?.initialCondition ?? 100)
 let operation = savedAttempt?.operation ?? initialHarbourOperationState()
 let input: ManoeuvreInput = savedAttempt?.input ?? { throttle: 0, rudder: 0 }
-let uiRudder = -input.rudder
+let uiRudder = input.rudder
 let accumulator = 0
 let previous = performance.now()
 let campaignSettled = false
@@ -84,9 +84,9 @@ if (rudder) {
     if (operation.docked) return
     void ensureSound()
     uiRudder = Number(rudder.value)
-    // Screen/helm convention: moving the control to STBD must turn the bow starboard.
-    // The P4 yaw sign is opposite, so conversion happens only at this UI boundary.
-    input = { ...input, rudder: -uiRudder }
+    // Helm convention: PORT is negative, STBD is positive. In the renderer
+    // positive yaw is a visible clockwise/starboard turn, so no sign flip is needed.
+    input = { ...input, rudder: uiRudder }
     persistAttempt()
   })
 }
