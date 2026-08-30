@@ -29,9 +29,21 @@ describe('P5 harbour operations', () => {
     expect(result.operation.collisions).toBe(1)
     expect(result.operation.damage).toBeGreaterThan(0)
     expect(result.state.condition).toBeLessThan(100)
+    expect(result.operation.message).toContain('Quay')
   })
 
-  it('does not stack damage every physics tick while still touching the quay', () => {
+  it('makes navigation buoys solid and damaging', () => {
+    const buoy = ROTTERDAM_P5.buoys[0]
+    const previous = initialManoeuvreState()
+    const state = { ...previous, x: (buoy.x - ROTTERDAM_P5.spawn.x) / ROTTERDAM_P5.renderScale, y: (buoy.z - ROTTERDAM_P5.spawn.z) / ROTTERDAM_P5.renderScale, surge: .8 }
+    const result = evaluateHarbourOperation(state, previous, vessel, load, ROTTERDAM_P5, initialHarbourOperationState())
+    expect(result.operation.collisions).toBe(1)
+    expect(result.operation.damage).toBeGreaterThan(0)
+    expect(result.operation.message).toContain('buoy')
+    expect(result.state.condition).toBeLessThan(100)
+  })
+
+  it('does not stack damage every physics tick while still touching an obstacle', () => {
     const quay = ROTTERDAM_P5.quays[0]
     const previous = initialManoeuvreState()
     const state = { ...previous, x: (quay.x - ROTTERDAM_P5.spawn.x) / ROTTERDAM_P5.renderScale, y: (quay.z - ROTTERDAM_P5.spawn.z) / ROTTERDAM_P5.renderScale, surge: 1 }
