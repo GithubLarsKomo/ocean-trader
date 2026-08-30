@@ -1,0 +1,32 @@
+@media (min-width:1100px) and (max-height:900px){
+  .desktop-command .dc-shell{grid-template-rows:68px minmax(0,1fr) 28px;min-height:650px}
+  .desktop-command .dc-header{height:68px}
+  .desktop-command .dc-brand h1{font-size:26px}
+  .desktop-command .dc-wheel{width:42px;height:42px}
+  .desktop-command .dc-grid{margin-top:7px;padding-bottom:7px;grid-template-rows:minmax(0,43fr) minmax(0,34fr) minmax(0,23fr);gap:7px}
+  .desktop-command .dc-panel>header{height:42px;padding-top:5px;padding-bottom:5px}
+  .desktop-command .dc-panel>header h2{font-size:15px}
+  .desktop-command .dc-panel-body{height:calc(100% - 42px);overflow:hidden}
+  .desktop-command .dc-footer{height:28px;padding-top:5px}
+  .desktop-command .dc-fleet .dc-panel-body{overflow:hidden}
+  .desktop-command .dc-fleet-list{height:100%}
+  .desktop-command .dc-fleet-list button{min-height:0;height:calc(100% / 3);padding-top:4px;padding-bottom:4px}
+  .desktop-command .dc-market .dc-panel-body{overflow:hidden}
+  .desktop-command .dc-ticker{height:100%;grid-template-rows:repeat(6,minmax(0,1fr))}
+  .desktop-command .dc-ticker button{min-height:0;height:100%;padding-top:4px;padding-bottom:4px}
+  .desktop-command .dc-bridge .dc-panel-body{overflow:hidden}
+  .desktop-command .dc-bridge-hud{padding:6px;gap:5px;grid-template-rows:minmax(0,1fr) auto 34px}
+  .desktop-command .dial{width:54px;height:54px}
+  .desktop-command .dial i{top:25px;transform-origin:21px 1px;width:21px}
+  .desktop-command .dc-action{min-height:34px}
+  .desktop-command .dc-events .dc-panel-body,.desktop-command .dc-finance .dc-panel-body,.desktop-command .dc-hq .dc-panel-body{overflow:hidden}
+  .desktop-command .dc-events-list{height:100%;padding:5px;gap:5px}
+  .desktop-command .event{min-height:0;padding:6px}
+  .desktop-command .dc-finance-body{height:100%;padding:5px;gap:4px}
+  .desktop-command .dc-loan{padding:5px}
+  .desktop-command .dc-hq-grid{height:100%;padding:6px;gap:5px}
+  .desktop-command .dc-bank,.desktop-command .dc-paper,.desktop-command .dc-messages{padding:7px}
+}
+@media (min-width:1100px) and (max-height:720px){
+  .desktop-command .dc-market .dc-panel-body,.desktop-command .dc-finance .dc-panel-body,.desktop-command .dc-hq .dc-panel-body{overflow:auto}
+}
