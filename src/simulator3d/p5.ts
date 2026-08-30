@@ -1,7 +1,8 @@
 import './p5.css'
 import { FIXED_DT, stepManoeuvre } from '../simulation/engine'
 import { calmEnvironment, initialManoeuvreState, type ManoeuvreInput } from '../simulation/state'
-import { loadState, VESSEL_PARAMETERS } from '../simulation/vessel-parameters'
+import { loadState as simulationLoadState, VESSEL_PARAMETERS } from '../simulation/vessel-parameters'
+import { loadCampaignArrival, settleCampaignArrival, simulationLoadForArrival } from './campaign'
 import { evaluateHarbourOperation, initialHarbourOperationState } from './operations'
 import { ROTTERDAM_P5 } from './rotterdam'
 import { createP5Scene } from './scene'
@@ -9,14 +10,17 @@ import { createP5Scene } from './scene'
 const canvas = document.querySelector<HTMLCanvasElement>('#p5-canvas')
 if (!canvas) throw new Error('P5 canvas missing')
 
+const vesselId = new URLSearchParams(window.location.search).get('vessel')
+const arrival = vesselId ? loadCampaignArrival(localStorage, vesselId) : null
+const vessel = arrival ? VESSEL_PARAMETERS[arrival.vesselClass] : VESSEL_PARAMETERS.handysize
+const load = arrival ? simulationLoadForArrival(arrival) : simulationLoadState(vessel, .6)
 const sim = createP5Scene(canvas, ROTTERDAM_P5)
-const vessel = VESSEL_PARAMETERS.handysize
-const load = loadState(vessel, .6)
-let state = initialManoeuvreState()
+let state = initialManoeuvreState(arrival?.initialCondition ?? 100)
 let operation = initialHarbourOperationState()
 let input: ManoeuvreInput = { throttle: 0, rudder: 0 }
 let accumulator = 0
 let previous = performance.now()
+let campaignSettled = false
 
 const q = (selector: string) => document.querySelector<HTMLElement>(selector)
 const headingEl = q('[data-hdg]')
@@ -27,6 +31,15 @@ const engineEl = q('[data-engine]')
 const draftEl = q('[data-draft]')
 const conditionEl = q('[data-condition]')
 const statusEl = q('[data-status]')
+const contextEl = q('[data-context]')
+const returnButton = document.querySelector<HTMLButtonElement>('[data-return-campaign]')
+
+if (contextEl) contextEl.textContent = arrival ? `${arrival.vesselName} · destination ${arrival.destination} · ${(arrival.loadRatio * 100).toFixed(0)}% load` : 'Training · 60% Handysize'
+if (returnButton) {
+  returnButton.hidden = !arrival
+  returnButton.disabled = true
+  returnButton.addEventListener('click', () => { window.location.href = '/' })
+}
 
 const engineOrders: Array<[string, number]> = [
   ['FULL ASTERN', -1], ['HALF ASTERN', -.7], ['SLOW ASTERN', -.35], ['STOP', 0],
@@ -52,7 +65,8 @@ document.querySelectorAll<HTMLButtonElement>('[data-camera]').forEach(button => 
 }))
 
 function reset() {
-  state = initialManoeuvreState()
+  if (campaignSettled) return
+  state = initialManoeuvreState(arrival?.initialCondition ?? 100)
   operation = initialHarbourOperationState()
   input = { throttle: 0, rudder: 0 }
   if (rudder) rudder.value = '0'
@@ -60,6 +74,14 @@ function reset() {
   document.querySelector<HTMLButtonElement>('[data-engine-order="STOP"]')?.classList.add('active')
 }
 document.querySelector<HTMLButtonElement>('[data-reset]')?.addEventListener('click', reset)
+
+function settleIfDocked() {
+  if (!arrival || !operation.docked || campaignSettled) return
+  settleCampaignArrival(localStorage, arrival.vesselId, state.condition)
+  campaignSettled = true
+  operation = { ...operation, message: `${arrival.vesselName} secured · campaign settlement saved` }
+  if (returnButton) returnButton.disabled = false
+}
 
 function renderHud() {
   const headingDeg = ((state.heading * 180 / Math.PI) % 360 + 360) % 360
@@ -88,6 +110,7 @@ sim.engine.runRenderLoop(() => {
     }
     accumulator -= FIXED_DT
   }
+  settleIfDocked()
   sim.renderState(state)
   renderHud()
   sim.scene.render()
