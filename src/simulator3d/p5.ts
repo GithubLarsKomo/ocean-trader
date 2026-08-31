@@ -22,7 +22,7 @@ const audio = createShipAudio()
 const savedAttempt = arrival ? loadHarbourAttempt(sessionStorage, arrival.vesselId) : null
 let state = savedAttempt?.state ?? initialManoeuvreState(arrival?.initialCondition ?? 100)
 let operation = savedAttempt?.operation ?? initialHarbourOperationState()
-let input: ManoeuvreInput = savedAttempt?.input ?? { engineOrder: 'STOP', rudder: 0 }
+let input: ManoeuvreInput = savedAttempt?.input ?? { engineOrder: 'STOP', rudder: 0, bowThruster: 0 }
 let uiRudder = input.rudder
 let accumulator = 0
 let previous = performance.now()
@@ -36,6 +36,7 @@ const speedEl = q('[data-sog]')
 const rotEl = q('[data-rot]')
 const rudderEl = q('[data-rudder]')
 const engineEl = q('[data-engine]')
+const bowThrusterEl = q('[data-bow-thruster-state]')
 const draftEl = q('[data-draft]')
 const conditionEl = q('[data-condition]')
 const statusEl = q('[data-status]')
@@ -43,6 +44,7 @@ const contextEl = q('[data-context]')
 const rudderVisual = q('[data-rudder-visual]')
 const soundButton = document.querySelector<HTMLButtonElement>('[data-sound]')
 const returnButton = document.querySelector<HTMLButtonElement>('[data-return-campaign]')
+const thrusterButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-bow-thruster]')]
 
 if (contextEl) contextEl.textContent = arrival ? `${arrival.vesselName} · destination ${arrival.destination} · ${(arrival.loadRatio * 100).toFixed(0)}% load` : 'Training · 60% Handysize'
 if (returnButton) {
@@ -82,15 +84,52 @@ function syncEngineButtons() {
   })
 }
 
+function syncThrusterButtons() {
+  const command = input.bowThruster ?? 0
+  thrusterButtons.forEach(button => {
+    button.classList.toggle('active', Number(button.dataset.bowThruster) === command && command !== 0)
+  })
+}
+
+function setBowThruster(command: number) {
+  const value = operation.docked ? 0 : Math.max(-1, Math.min(1, command))
+  input = { ...input, bowThruster: value }
+  syncThrusterButtons()
+}
+
 syncEngineButtons()
+syncThrusterButtons()
 document.querySelectorAll<HTMLButtonElement>('[data-engine-order]').forEach(button => button.addEventListener('click', () => {
   const order = engineOrders[button.dataset.engineOrder ?? '']
   if (!order || operation.docked) return
   void ensureSound()
-  input = { engineOrder: order, rudder: input.rudder }
+  input = { ...input, engineOrder: order }
   persistAttempt()
   syncEngineButtons()
 }))
+
+thrusterButtons.forEach(button => {
+  const engage = (event: Event) => {
+    event.preventDefault()
+    if (operation.docked) return
+    void ensureSound()
+    setBowThruster(Number(button.dataset.bowThruster ?? 0))
+  }
+  const release = () => setBowThruster(0)
+  button.addEventListener('pointerdown', engage)
+  button.addEventListener('pointerup', release)
+  button.addEventListener('pointercancel', release)
+  button.addEventListener('lostpointercapture', release)
+  button.addEventListener('keydown', event => {
+    if (event.key === ' ' || event.key === 'Enter') engage(event)
+  })
+  button.addEventListener('keyup', event => {
+    if (event.key === ' ' || event.key === 'Enter') release()
+  })
+})
+window.addEventListener('pointerup', () => setBowThruster(0))
+window.addEventListener('blur', () => setBowThruster(0))
+document.addEventListener('visibilitychange', () => { if (document.hidden) setBowThruster(0) })
 
 const rudder = document.querySelector<HTMLInputElement>('#rudder')
 if (rudder) {
@@ -128,11 +167,12 @@ function reset() {
   const retainedCollisions = operation.collisions
   state = initialManoeuvreState(retainedCondition)
   operation = { ...initialHarbourOperationState(), damage: retainedDamage, collisions: retainedCollisions, message: retainedCollisions ? `Repositioned · ${retainedDamage.toFixed(1)}% damage retained` : 'Approach berth' }
-  input = { engineOrder: 'STOP', rudder: 0 }
+  input = { engineOrder: 'STOP', rudder: 0, bowThruster: 0 }
   uiRudder = 0
   audibleCollisionCount = retainedCollisions
   if (rudder) rudder.value = '0'
   syncEngineButtons()
+  syncThrusterButtons()
   persistAttempt()
 }
 document.querySelector<HTMLButtonElement>('[data-reset]')?.addEventListener('click', reset)
@@ -151,12 +191,14 @@ function renderHud() {
   const speedKnots = Math.hypot(state.surge, state.sway) * 1.94
   const rudderDeg = Math.round(Math.abs(uiRudder) * 35)
   const rudderSide = Math.abs(uiRudder) < .025 ? 'MID' : uiRudder < 0 ? 'PORT' : 'STBD'
+  const bowLabel = Math.abs(state.bowThruster) < .01 ? 'OFF' : state.bowThruster < 0 ? 'PORT' : 'STBD'
   if (headingEl) headingEl.textContent = `${headingDeg.toFixed(0).padStart(3, '0')}°`
   if (speedEl) speedEl.textContent = `${speedKnots.toFixed(1)} kn`
   if (rotEl) rotEl.textContent = `${(state.yawRate * 180 / Math.PI * 60).toFixed(1)}°/min`
   if (rudderEl) rudderEl.textContent = rudderSide === 'MID' ? 'MID' : `${rudderSide} ${rudderDeg}°`
   if (rudderVisual) rudderVisual.style.transform = `rotate(${uiRudder * 35}deg)`
   if (engineEl) engineEl.textContent = engineOrderLabel(commandedOrder())
+  if (bowThrusterEl) bowThrusterEl.textContent = bowLabel
   if (draftEl) draftEl.textContent = `${load.draftMeters.toFixed(1)} m`
   if (conditionEl) conditionEl.textContent = `${state.condition.toFixed(0)}%`
   if (statusEl) statusEl.textContent = operation.message
@@ -179,8 +221,9 @@ sim.engine.runRenderLoop(() => {
         audibleCollisionCount = operation.collisions
       }
       if (operation.docked) {
-        input = { engineOrder: 'STOP', rudder: 0 }
+        input = { engineOrder: 'STOP', rudder: 0, bowThruster: 0 }
         syncEngineButtons()
+        syncThrusterButtons()
       }
       persistenceTicks += 1
       if (persistenceTicks >= 15) {
@@ -196,4 +239,7 @@ sim.engine.runRenderLoop(() => {
   sim.scene.render()
 })
 
-window.addEventListener('pagehide', () => audio.dispose(), { once: true })
+window.addEventListener('pagehide', () => {
+  setBowThruster(0)
+  audio.dispose()
+}, { once: true })
