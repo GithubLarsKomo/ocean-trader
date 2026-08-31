@@ -5,6 +5,8 @@ import { stepPropulsion } from './forces/propulsion'
 import { propWalkForces } from './forces/prop-walk'
 import { rudderForces } from './forces/rudder'
 import { bowThrusterForces } from './forces/thruster'
+import { windForces } from './forces/wind'
+import { environmentVectors } from './units'
 
 export const FIXED_DT = 1 / 30
 
@@ -25,12 +27,14 @@ export function stepManoeuvre(
   const rudderLoad = rudderForces(state, rudder, propulsion.shaftActual, vessel)
   const propWalk = propWalkForces(state, propulsion.shaftActual, vessel)
   const thruster = bowThrusterForces(state, bowThruster, vessel)
+  const wind = windForces(state, environment, vessel)
   const massFactor = load.displacementTonnes / vessel.lightshipTonnes
 
+  // Hydrodynamic forces act on water-relative surge/sway only. Current is added
+  // later when propagating ground position and never appears in hull/rudder forces.
   const surgeAcceleration = (propulsion.thrust + hull.surgeForce) / massFactor
-  const windSway = environment.windY * vessel.windage / massFactor
-  const swayAcceleration = (hull.swayForce + rudderLoad.swayForce + propWalk.swayForce + thruster.swayForce) / massFactor + windSway
-  const yawAcceleration = (hull.yawMoment + rudderLoad.yawMoment + propWalk.yawMoment + thruster.yawMoment) / (vessel.yawInertia * massFactor)
+  const swayAcceleration = (hull.swayForce + rudderLoad.swayForce + propWalk.swayForce + thruster.swayForce + wind.swayForce) / massFactor
+  const yawAcceleration = (hull.yawMoment + rudderLoad.yawMoment + propWalk.yawMoment + thruster.yawMoment + wind.yawMoment) / (vessel.yawInertia * massFactor)
 
   const surge = state.surge + surgeAcceleration * dt
   const sway = state.sway + swayAcceleration * dt
@@ -38,13 +42,16 @@ export function stepManoeuvre(
   const heading = state.heading + yawRate * dt
   const cos = Math.cos(heading)
   const sin = Math.sin(heading)
-  const worldX = surge * cos - sway * sin + environment.currentX
-  const worldY = surge * sin + sway * cos + environment.currentY
+  const { currentWorldX, currentWorldY } = environmentVectors(environment)
+  const waterWorldX = surge * cos - sway * sin
+  const waterWorldY = surge * sin + sway * cos
+  const groundWorldX = waterWorldX + currentWorldX
+  const groundWorldY = waterWorldY + currentWorldY
 
   const next: ManoeuvreState = {
     ...state,
-    x: state.x + worldX * dt,
-    y: state.y + worldY * dt,
+    x: state.x + groundWorldX * dt,
+    y: state.y + groundWorldY * dt,
     heading,
     surge,
     sway,
