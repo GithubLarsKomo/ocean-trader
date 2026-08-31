@@ -40,7 +40,7 @@ export type VesselParameters = {
 export const VESSEL_PARAMETERS: Record<SimulationVesselClass, VesselParameters> = {
   coaster: {
     classId: 'coaster', lengthMeters: 105, beamMeters: 16, lightshipTonnes: 3500, deadweightTonnes: 8000,
-    designDraftMeters: 5.4, aheadThrust: 2.6, reverseThrustFactor: .72,
+    designDraftMeters: 5.4, aheadThrust: 2.8, reverseThrustFactor: .72,
     surgeDragLinear: .012, surgeDragQuadratic: .042,
     swayDragLinear: .085, swayDragQuadratic: .080,
     yawDragLinear: .17, yawDragQuadratic: .13, swayYawCoupling: .045, yawSwayCoupling: .040, yawInertia: 1.0,
@@ -65,7 +65,7 @@ export const VESSEL_PARAMETERS: Record<SimulationVesselClass, VesselParameters> 
     swayDragLinear: .062, swayDragQuadratic: .058,
     yawDragLinear: .125, yawDragQuadratic: .092, swayYawCoupling: .036, yawSwayCoupling: .032, yawInertia: 2.15,
     rudderForceFactor: .27, rudderLeverArm: .90, rudderSwayFactor: .34, propWashFactor: .66, asternRudderWashFactor: .20, rudderFlowCap: 1.95,
-    propWalk: .17, windage: 1.18,
+    propWalk: .17, windage: 1.35,
     engineResponseAheadSeconds: 6.0, engineResponseAsternSeconds: 7.5, engineResponseStopSeconds: 4.5, engineReversalDelaySeconds: 2.7,
   },
   panamax: {
