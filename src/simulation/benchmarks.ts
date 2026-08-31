@@ -15,6 +15,8 @@ export type BenchmarkResult = {
 
 type Phase = { seconds: number; input: ManoeuvreInput; environment?: EnvironmentState }
 
+const KNOTS_PER_MPS = 1.9438444924406
+
 function runPhasesFrom(initial: ManoeuvreState, vessel: VesselParameters, loadRatio: number, phases: Phase[]): { final: ManoeuvreState; track: TrackPoint[] } {
   let state = initial
   const load = loadState(vessel, loadRatio)
@@ -47,6 +49,20 @@ export function accelerationBenchmark(vesselClass: SimulationVesselClass, loadRa
   return { id: 'acceleration', vesselClass, loadRatio, duration: 60, ...run, metrics: { finalSurge: run.final.surge, distance: Math.hypot(run.final.x, run.final.y) } }
 }
 
+/** Harbour-relevant response benchmark: first 20 seconds from STOP to FULL AHEAD. */
+export function harbourResponseBenchmark(vesselClass: SimulationVesselClass, loadRatio = .5): BenchmarkResult {
+  const vessel = VESSEL_PARAMETERS[vesselClass]
+  const run = runPhases(vessel, loadRatio, [{ seconds: 20, input: { engineOrder: 'FULL_AHEAD', rudder: 0 } }])
+  return {
+    id: 'harbour-response', vesselClass, loadRatio, duration: 20, ...run,
+    metrics: {
+      finalSurge: run.final.surge,
+      finalSpeedKnots: run.final.surge * KNOTS_PER_MPS,
+      distance: Math.hypot(run.final.x, run.final.y),
+    },
+  }
+}
+
 export function hardTurnBenchmark(vesselClass: SimulationVesselClass, loadRatio = .5): BenchmarkResult {
   const vessel = VESSEL_PARAMETERS[vesselClass]
   const run = runPhases(vessel, loadRatio, [
@@ -57,6 +73,27 @@ export function hardTurnBenchmark(vesselClass: SimulationVesselClass, loadRatio 
   const afterTurn = run.track.filter(p => p.elapsed >= 30)
   const radiusProxy = afterTurn.length ? Math.max(...afterTurn.map(p => distance(startTurn, p))) : 0
   return { id: 'hard-turn', vesselClass, loadRatio, duration: 105, ...run, metrics: { headingChange: Math.abs(run.final.heading), radiusProxy, maxYawRate: maxAbs(run.track, 'yawRate') } }
+}
+
+/** Identical 4 kn / HALF AHEAD entry state for class and load calibration. */
+export function lowSpeedTurnBenchmark(vesselClass: SimulationVesselClass, loadRatio = .5): BenchmarkResult {
+  const vessel = VESSEL_PARAMETERS[vesselClass]
+  const initial = {
+    ...initialManoeuvreState(),
+    surge: 4 / KNOTS_PER_MPS,
+    engineOrder: 'HALF_AHEAD' as const,
+    shaftDemand: .6,
+    shaftActual: .6,
+  }
+  const run = runPhasesFrom(initial, vessel, loadRatio, [{ seconds: 20, input: { engineOrder: 'HALF_AHEAD', rudder: 1 } }])
+  return {
+    id: 'low-speed-turn', vesselClass, loadRatio, duration: 20, ...run,
+    metrics: {
+      headingChange: Math.abs(run.final.heading),
+      finalYawRate: Math.abs(run.final.yawRate),
+      displacement: Math.hypot(run.final.x, run.final.y),
+    },
+  }
 }
 
 export function crashStopBenchmark(vesselClass: SimulationVesselClass, loadRatio = .5): BenchmarkResult {
@@ -79,6 +116,40 @@ export function crashStopBenchmark(vesselClass: SimulationVesselClass, loadRatio
     if (state.surge <= .05) break
   }
   return { id: 'crash-stop', vesselClass, loadRatio, duration: stopTime, final: state, track, metrics: { approachSurge: stopStart.surge, stopTime, stopDistance } }
+}
+
+/**
+ * Class-comparison crash stop from the same 6 kn FULL AHEAD state.
+ * This removes different approach speeds from the class comparison while still
+ * preserving each vessel's reversal delay, engine response, mass and drag.
+ */
+export function normalizedCrashStopBenchmark(vesselClass: SimulationVesselClass, loadRatio = .5): BenchmarkResult {
+  const vessel = VESSEL_PARAMETERS[vesselClass]
+  const load = loadState(vessel, loadRatio)
+  let state: ManoeuvreState = {
+    ...initialManoeuvreState(),
+    surge: 6 / KNOTS_PER_MPS,
+    engineOrder: 'FULL_AHEAD',
+    shaftDemand: 1,
+    shaftActual: 1,
+  }
+  const track: TrackPoint[] = []
+  let stopTime = 0
+  let stopDistance = 0
+  let prev = { ...state }
+  const maxSteps = Math.round(240 / FIXED_DT)
+  for (let i = 0; i < maxSteps; i += 1) {
+    state = stepManoeuvre(state, { engineOrder: 'FULL_ASTERN', rudder: 0 }, vessel, load, calmEnvironment)
+    stopTime += FIXED_DT
+    stopDistance += Math.hypot(state.x - prev.x, state.y - prev.y)
+    prev = { ...state }
+    if (i % 15 === 0) track.push({ x: state.x, y: state.y, heading: state.heading, surge: state.surge, sway: state.sway, yawRate: state.yawRate, elapsed: stopTime })
+    if (state.surge <= .05) break
+  }
+  return {
+    id: 'normalized-crash-stop', vesselClass, loadRatio, duration: stopTime, final: state, track,
+    metrics: { approachSpeedKnots: 6, stopTime, stopDistance },
+  }
 }
 
 export function reversePropWalkBenchmark(vesselClass: SimulationVesselClass, loadRatio = .5): BenchmarkResult {
@@ -149,8 +220,11 @@ export function bowThrusterBenchmark(vesselClass: SimulationVesselClass, loadRat
 export function benchmarkSuite(vesselClass: SimulationVesselClass, loadRatio = .5) {
   return [
     accelerationBenchmark(vesselClass, loadRatio),
+    harbourResponseBenchmark(vesselClass, loadRatio),
     hardTurnBenchmark(vesselClass, loadRatio),
+    lowSpeedTurnBenchmark(vesselClass, loadRatio),
     crashStopBenchmark(vesselClass, loadRatio),
+    normalizedCrashStopBenchmark(vesselClass, loadRatio),
     reversePropWalkBenchmark(vesselClass, loadRatio),
     windDriftBenchmark(vesselClass, loadRatio),
     lowSpeedRudderBenchmark(vesselClass, loadRatio),
