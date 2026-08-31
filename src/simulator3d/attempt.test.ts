@@ -19,7 +19,7 @@ describe('harbour attempt persistence', () => {
     const operation = { ...initialHarbourOperationState(), collisions: 2, damage: 4.5, contactActive: true }
     const input = { engineOrder: 'SLOW_AHEAD' as const, rudder: -.4 }
     saveHarbourAttempt(storage, { version: 2, vesselId: 'v-1', state, operation, input })
-    expect(loadHarbourAttempt(storage, 'v-1')).toEqual({ version: 2, vesselId: 'v-1', state, operation, input })
+    expect(loadHarbourAttempt(storage, 'v-1')).toEqual({ version: 2, vesselId: 'v-1', state, operation, input: { ...input, bowThruster: 0 } })
   })
 
   it('migrates a v1 throttle attempt without losing motion', () => {
@@ -33,10 +33,25 @@ describe('harbour attempt persistence', () => {
     }))
     const restored = loadHarbourAttempt(storage, 'v-old')
     expect(restored?.version).toBe(2)
-    expect(restored?.input).toEqual({ engineOrder: 'SLOW_AHEAD', rudder: .2 })
+    expect(restored?.input).toEqual({ engineOrder: 'SLOW_AHEAD', rudder: .2, bowThruster: 0 })
     expect(restored?.state.engineOrder).toBe('SLOW_AHEAD')
     expect(restored?.state.shaftActual).toBeCloseTo(.3)
     expect(restored?.state.surge).toBeCloseTo(.4)
+  })
+
+  it('never restores a momentary bow-thruster command as active', () => {
+    const storage = memoryStorage()
+    const state = { ...initialManoeuvreState(), bowThruster: 1 }
+    saveHarbourAttempt(storage, {
+      version: 2,
+      vesselId: 'v-thruster',
+      state,
+      operation: initialHarbourOperationState(),
+      input: { engineOrder: 'STOP', rudder: 0, bowThruster: 1 },
+    })
+    const restored = loadHarbourAttempt(storage, 'v-thruster')
+    expect(restored?.input.bowThruster).toBe(0)
+    expect(restored?.state.bowThruster).toBe(0)
   })
 
   it('clears both current and legacy attempts only after explicit completion', () => {
