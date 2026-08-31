@@ -17,6 +17,7 @@ export type ManoeuvreState = {
   sway: number
   yawRate: number
   rudder: number
+  bowThruster: number
   engineOrder: EngineOrder
   shaftDemand: number
   shaftActual: number
@@ -27,6 +28,7 @@ export type ManoeuvreState = {
 
 export type ManoeuvreInput = {
   rudder: number
+  bowThruster?: number
   engineOrder?: EngineOrder
   /** Compatibility input for P4 benchmarks and persisted pre-P5.3 attempts. */
   throttle?: number
@@ -62,6 +64,7 @@ export function initialManoeuvreState(condition = 100): ManoeuvreState {
     sway: 0,
     yawRate: 0,
     rudder: 0,
+    bowThruster: 0,
     engineOrder: 'STOP',
     shaftDemand: 0,
     shaftActual: 0,
