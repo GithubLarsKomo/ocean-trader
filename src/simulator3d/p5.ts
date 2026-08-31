@@ -29,6 +29,7 @@ let previous = performance.now()
 let campaignSettled = false
 let persistenceTicks = 0
 let audibleCollisionCount = operation.collisions
+let activeThrusterPointer: number | null = null
 
 const q = (selector: string) => document.querySelector<HTMLElement>(selector)
 const headingEl = q('[data-hdg]')
@@ -97,6 +98,12 @@ function setBowThruster(command: number) {
   syncThrusterButtons()
 }
 
+function releaseThruster(pointerId?: number) {
+  if (pointerId !== undefined && activeThrusterPointer !== pointerId) return
+  activeThrusterPointer = null
+  setBowThruster(0)
+}
+
 syncEngineButtons()
 syncThrusterButtons()
 document.querySelectorAll<HTMLButtonElement>('[data-engine-order]').forEach(button => button.addEventListener('click', () => {
@@ -109,27 +116,32 @@ document.querySelectorAll<HTMLButtonElement>('[data-engine-order]').forEach(butt
 }))
 
 thrusterButtons.forEach(button => {
-  const engage = (event: Event) => {
+  button.addEventListener('pointerdown', event => {
+    event.preventDefault()
+    if (operation.docked) return
+    void ensureSound()
+    activeThrusterPointer = event.pointerId
+    button.setPointerCapture(event.pointerId)
+    setBowThruster(Number(button.dataset.bowThruster ?? 0))
+  })
+  button.addEventListener('pointerup', event => releaseThruster(event.pointerId))
+  button.addEventListener('pointercancel', event => releaseThruster(event.pointerId))
+  button.addEventListener('lostpointercapture', event => releaseThruster(event.pointerId))
+  button.addEventListener('keydown', event => {
+    if (event.key !== ' ' && event.key !== 'Enter') return
     event.preventDefault()
     if (operation.docked) return
     void ensureSound()
     setBowThruster(Number(button.dataset.bowThruster ?? 0))
-  }
-  const release = () => setBowThruster(0)
-  button.addEventListener('pointerdown', engage)
-  button.addEventListener('pointerup', release)
-  button.addEventListener('pointercancel', release)
-  button.addEventListener('lostpointercapture', release)
-  button.addEventListener('keydown', event => {
-    if (event.key === ' ' || event.key === 'Enter') engage(event)
   })
   button.addEventListener('keyup', event => {
-    if (event.key === ' ' || event.key === 'Enter') release()
+    if (event.key === ' ' || event.key === 'Enter') releaseThruster()
   })
 })
-window.addEventListener('pointerup', () => setBowThruster(0))
-window.addEventListener('blur', () => setBowThruster(0))
-document.addEventListener('visibilitychange', () => { if (document.hidden) setBowThruster(0) })
+window.addEventListener('pointerup', event => releaseThruster(event.pointerId))
+window.addEventListener('pointercancel', event => releaseThruster(event.pointerId))
+window.addEventListener('blur', () => releaseThruster())
+document.addEventListener('visibilitychange', () => { if (document.hidden) releaseThruster() })
 
 const rudder = document.querySelector<HTMLInputElement>('#rudder')
 if (rudder) {
@@ -169,6 +181,7 @@ function reset() {
   operation = { ...initialHarbourOperationState(), damage: retainedDamage, collisions: retainedCollisions, message: retainedCollisions ? `Repositioned · ${retainedDamage.toFixed(1)}% damage retained` : 'Approach berth' }
   input = { engineOrder: 'STOP', rudder: 0, bowThruster: 0 }
   uiRudder = 0
+  activeThrusterPointer = null
   audibleCollisionCount = retainedCollisions
   if (rudder) rudder.value = '0'
   syncEngineButtons()
@@ -222,6 +235,7 @@ sim.engine.runRenderLoop(() => {
       }
       if (operation.docked) {
         input = { engineOrder: 'STOP', rudder: 0, bowThruster: 0 }
+        activeThrusterPointer = null
         syncEngineButtons()
         syncThrusterButtons()
       }
@@ -240,6 +254,6 @@ sim.engine.runRenderLoop(() => {
 })
 
 window.addEventListener('pagehide', () => {
-  setBowThruster(0)
+  releaseThruster()
   audio.dispose()
 }, { once: true })
