@@ -1,7 +1,8 @@
 import './p5.css'
 import { FIXED_DT, stepManoeuvre } from '../simulation/engine'
-import { calmEnvironment, initialManoeuvreState, type EngineOrder, type ManoeuvreInput } from '../simulation/state'
+import { initialManoeuvreState, type EngineOrder, type EnvironmentState, type ManoeuvreInput } from '../simulation/state'
 import { engineOrderFromLegacyThrottle } from '../simulation/forces/propulsion'
+import { navigationMetrics, KNOTS_PER_MPS } from '../simulation/units'
 import { loadState as simulationLoadState, VESSEL_PARAMETERS } from '../simulation/vessel-parameters'
 import { createShipAudio } from './audio'
 import { clearHarbourAttempt, loadHarbourAttempt, saveHarbourAttempt } from './attempt'
@@ -12,6 +13,13 @@ import { createP5Scene } from './scene'
 
 const canvas = document.querySelector<HTMLCanvasElement>('#p5-canvas')
 if (!canvas) throw new Error('P5 canvas missing')
+
+const HARBOUR_ENVIRONMENT: EnvironmentState = {
+  windSpeedMps: 5.5,
+  windFromDeg: 240,
+  currentSpeedMps: .25,
+  currentToDeg: 105,
+}
 
 const vesselId = new URLSearchParams(window.location.search).get('vessel')
 const arrival = vesselId ? loadCampaignArrival(localStorage, vesselId) : null
@@ -33,6 +41,8 @@ let activeThrusterPointer: number | null = null
 
 const q = (selector: string) => document.querySelector<HTMLElement>(selector)
 const headingEl = q('[data-hdg]')
+const cogEl = q('[data-cog]')
+const stwEl = q('[data-stw]')
 const speedEl = q('[data-sog]')
 const rotEl = q('[data-rot]')
 const rudderEl = q('[data-rudder]')
@@ -47,7 +57,12 @@ const soundButton = document.querySelector<HTMLButtonElement>('[data-sound]')
 const returnButton = document.querySelector<HTMLButtonElement>('[data-return-campaign]')
 const thrusterButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-bow-thruster]')]
 
-if (contextEl) contextEl.textContent = arrival ? `${arrival.vesselName} · destination ${arrival.destination} · ${(arrival.loadRatio * 100).toFixed(0)}% load` : 'Training · 60% Handysize'
+const windKnots = (HARBOUR_ENVIRONMENT.windSpeedMps ?? 0) * KNOTS_PER_MPS
+const currentKnots = (HARBOUR_ENVIRONMENT.currentSpeedMps ?? 0) * KNOTS_PER_MPS
+const environmentLabel = `WND ${windKnots.toFixed(0)} kn/${HARBOUR_ENVIRONMENT.windFromDeg ?? 0}° · CUR ${currentKnots.toFixed(1)} kn/${HARBOUR_ENVIRONMENT.currentToDeg ?? 0}°`
+if (contextEl) contextEl.textContent = arrival
+  ? `${arrival.vesselName} · ${arrival.destination} · ${(arrival.loadRatio * 100).toFixed(0)}% load · ${environmentLabel}`
+  : `Training · 60% Handysize · ${environmentLabel}`
 if (returnButton) {
   returnButton.hidden = !arrival
   returnButton.disabled = true
@@ -201,12 +216,14 @@ function settleIfDocked() {
 
 function renderHud() {
   const headingDeg = ((state.heading * 180 / Math.PI) % 360 + 360) % 360
-  const speedKnots = Math.hypot(state.surge, state.sway) * 1.94
+  const navigation = navigationMetrics(state, HARBOUR_ENVIRONMENT)
   const rudderDeg = Math.round(Math.abs(uiRudder) * 35)
   const rudderSide = Math.abs(uiRudder) < .025 ? 'MID' : uiRudder < 0 ? 'PORT' : 'STBD'
   const bowLabel = Math.abs(state.bowThruster) < .01 ? 'OFF' : state.bowThruster < 0 ? 'PORT' : 'STBD'
   if (headingEl) headingEl.textContent = `${headingDeg.toFixed(0).padStart(3, '0')}°`
-  if (speedEl) speedEl.textContent = `${speedKnots.toFixed(1)} kn`
+  if (cogEl) cogEl.textContent = `${navigation.cogDeg.toFixed(0).padStart(3, '0')}°`
+  if (stwEl) stwEl.textContent = `${navigation.stwKnots.toFixed(1)} kn`
+  if (speedEl) speedEl.textContent = `${navigation.sogKnots.toFixed(1)} kn`
   if (rotEl) rotEl.textContent = `${(state.yawRate * 180 / Math.PI * 60).toFixed(1)}°/min`
   if (rudderEl) rudderEl.textContent = rudderSide === 'MID' ? 'MID' : `${rudderSide} ${rudderDeg}°`
   if (rudderVisual) rudderVisual.style.transform = `rotate(${uiRudder * 35}deg)`
@@ -215,7 +232,7 @@ function renderHud() {
   if (draftEl) draftEl.textContent = `${load.draftMeters.toFixed(1)} m`
   if (conditionEl) conditionEl.textContent = `${state.condition.toFixed(0)}%`
   if (statusEl) statusEl.textContent = operation.message
-  audio.setMotion(operation.docked ? 0 : state.shaftActual, speedKnots)
+  audio.setMotion(operation.docked ? 0 : state.shaftActual, navigation.stwKnots)
 }
 
 sim.engine.runRenderLoop(() => {
@@ -225,7 +242,7 @@ sim.engine.runRenderLoop(() => {
   while (accumulator >= FIXED_DT) {
     if (!operation.docked) {
       const before = state
-      const stepped = stepManoeuvre(state, input, vessel, load, calmEnvironment, FIXED_DT)
+      const stepped = stepManoeuvre(state, input, vessel, load, HARBOUR_ENVIRONMENT, FIXED_DT)
       const evaluated = evaluateHarbourOperation(stepped, before, vessel, load, ROTTERDAM_P5, operation)
       state = evaluated.state
       operation = evaluated.operation

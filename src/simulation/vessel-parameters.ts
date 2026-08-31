@@ -39,7 +39,10 @@ export type VesselParameters = {
   bowThrusterLeverArm: number
   bowThrusterCutoffKnots: number
 
+  /** Relative lateral aerodynamic area/coefficient at reference lightship condition. */
   windage: number
+  /** Normalized aft center-of-effort arm used to turn lateral wind force into yaw. */
+  windYawArm: number
 
   engineResponseAheadSeconds: number
   engineResponseAsternSeconds: number
@@ -64,7 +67,7 @@ export const VESSEL_PARAMETERS: Record<SimulationVesselClass, VesselParameters> 
     rudderForceFactor: .0034, rudderLeverArm: 1.00, rudderSwayFactor: .30, propWashFactor: .74, asternRudderWashFactor: .24, rudderFlowCap: 2.0,
     propellerHandedness: 'right', propWalkStrength: .00066, propWalkLeverArm: 7.3, propWalkAheadFactor: .020, propWalkSpeedDecay: .34,
     bowThrusterForce: .014, bowThrusterLeverArm: 1.18, bowThrusterCutoffKnots: 5,
-    windage: .65,
+    windage: .65, windYawArm: .42,
     engineResponseAheadSeconds: 3.5, engineResponseAsternSeconds: 4.5, engineResponseStopSeconds: 2.8, engineReversalDelaySeconds: 1.5,
   },
   handysize: {
@@ -76,7 +79,7 @@ export const VESSEL_PARAMETERS: Record<SimulationVesselClass, VesselParameters> 
     rudderForceFactor: .0030, rudderLeverArm: .94, rudderSwayFactor: .32, propWashFactor: .70, asternRudderWashFactor: .22, rudderFlowCap: 2.0,
     propellerHandedness: 'right', propWalkStrength: .00075, propWalkLeverArm: 7.8, propWalkAheadFactor: .015, propWalkSpeedDecay: .32,
     bowThrusterForce: .016, bowThrusterLeverArm: 1.28, bowThrusterCutoffKnots: 5,
-    windage: .78,
+    windage: .78, windYawArm: .50,
     engineResponseAheadSeconds: 5.0, engineResponseAsternSeconds: 6.5, engineResponseStopSeconds: 3.8, engineReversalDelaySeconds: 2.3,
   },
   feeder: {
@@ -88,7 +91,7 @@ export const VESSEL_PARAMETERS: Record<SimulationVesselClass, VesselParameters> 
     rudderForceFactor: .0027, rudderLeverArm: .90, rudderSwayFactor: .34, propWashFactor: .66, asternRudderWashFactor: .20, rudderFlowCap: 1.95,
     propellerHandedness: 'right', propWalkStrength: .000645, propWalkLeverArm: 7.9, propWalkAheadFactor: .012, propWalkSpeedDecay: .30,
     bowThrusterForce: .018, bowThrusterLeverArm: 1.34, bowThrusterCutoffKnots: 5,
-    windage: 1.35,
+    windage: 1.35, windYawArm: .62,
     engineResponseAheadSeconds: 6.0, engineResponseAsternSeconds: 7.5, engineResponseStopSeconds: 4.5, engineReversalDelaySeconds: 2.7,
   },
   panamax: {
@@ -100,7 +103,7 @@ export const VESSEL_PARAMETERS: Record<SimulationVesselClass, VesselParameters> 
     rudderForceFactor: .0024, rudderLeverArm: .86, rudderSwayFactor: .36, propWashFactor: .60, asternRudderWashFactor: .18, rudderFlowCap: 1.90,
     propellerHandedness: 'right', propWalkStrength: .000525, propWalkLeverArm: 8.0, propWalkAheadFactor: .010, propWalkSpeedDecay: .27,
     bowThrusterForce: .020, bowThrusterLeverArm: 1.40, bowThrusterCutoffKnots: 5,
-    windage: 1.02,
+    windage: 1.02, windYawArm: .58,
     engineResponseAheadSeconds: 8.0, engineResponseAsternSeconds: 10.0, engineResponseStopSeconds: 5.5, engineReversalDelaySeconds: 3.5,
   },
 }
