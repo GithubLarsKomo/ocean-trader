@@ -1,6 +1,8 @@
 import type { EnvironmentState, ManoeuvreInput, ManoeuvreState, VesselLoadState } from './state'
 import type { VesselParameters } from './vessel-parameters'
+import { hullForces } from './forces/hull'
 import { stepPropulsion } from './forces/propulsion'
+import { rudderForces } from './forces/rudder'
 
 export const FIXED_DT = 1 / 30
 
@@ -16,14 +18,19 @@ export function stepManoeuvre(
 ): ManoeuvreState {
   const rudder = clamp(input.rudder, -1, 1)
   const propulsion = stepPropulsion(state, input, vessel, dt)
+  const hull = hullForces(state, vessel)
+  const rudderLoad = rudderForces(state, rudder, propulsion.shaftActual, vessel)
   const massFactor = load.displacementTonnes / vessel.lightshipTonnes
-  const surgeAcceleration = propulsion.thrust / massFactor - vessel.surgeDrag * state.surge * Math.abs(state.surge)
-  const rudderFlow = Math.min(1.5, Math.abs(state.surge))
-  const yawMoment = rudder * vessel.rudderAuthority * rudderFlow * Math.sign(state.surge || 1)
+
+  const surgeAcceleration = (propulsion.thrust + hull.surgeForce) / massFactor
+
+  // P5.3-C will extract prop walk into its own force module. Until then it
+  // remains the existing deterministic baseline so B can focus on hull/rudder.
   const propWalk = propulsion.shaftActual < 0 ? vessel.propWalk * -propulsion.shaftActual : 0
-  const yawAcceleration = (yawMoment + propWalk - vessel.yawDrag * state.yawRate) / vessel.yawInertia
   const windSway = environment.windY * vessel.windage / massFactor
-  const swayAcceleration = windSway - vessel.lateralDrag * state.sway + propWalk * .12
+  const swayAcceleration = (hull.swayForce + rudderLoad.swayForce + propWalk * .12) / massFactor + windSway
+  const yawAcceleration = (hull.yawMoment + rudderLoad.yawMoment + propWalk) / (vessel.yawInertia * massFactor)
+
   const surge = state.surge + surgeAcceleration * dt
   const sway = state.sway + swayAcceleration * dt
   const yawRate = state.yawRate + yawAcceleration * dt

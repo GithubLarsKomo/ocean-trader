@@ -15,8 +15,8 @@ export type BenchmarkResult = {
 
 type Phase = { seconds: number; input: ManoeuvreInput; environment?: EnvironmentState }
 
-function runPhases(vessel: VesselParameters, loadRatio: number, phases: Phase[]): { final: ManoeuvreState; track: TrackPoint[] } {
-  let state = initialManoeuvreState()
+function runPhasesFrom(initial: ManoeuvreState, vessel: VesselParameters, loadRatio: number, phases: Phase[]): { final: ManoeuvreState; track: TrackPoint[] } {
+  let state = initial
   const load = loadState(vessel, loadRatio)
   const track: TrackPoint[] = []
   let sampleClock = 0
@@ -32,6 +32,10 @@ function runPhases(vessel: VesselParameters, loadRatio: number, phases: Phase[])
     }
   }
   return { final: state, track }
+}
+
+function runPhases(vessel: VesselParameters, loadRatio: number, phases: Phase[]) {
+  return runPhasesFrom(initialManoeuvreState(), vessel, loadRatio, phases)
 }
 
 const distance = (a: TrackPoint, b: TrackPoint) => Math.hypot(b.x - a.x, b.y - a.y)
@@ -90,6 +94,35 @@ export function windDriftBenchmark(vesselClass: SimulationVesselClass, loadRatio
   return { id: 'wind-drift', vesselClass, loadRatio, duration: 90, ...run, metrics: { lateralOffset: Math.abs(run.final.y), maxSway: maxAbs(run.track, 'sway') } }
 }
 
+export function lowSpeedRudderBenchmark(vesselClass: SimulationVesselClass, loadRatio = .5): BenchmarkResult {
+  const vessel = VESSEL_PARAMETERS[vesselClass]
+  const noFlow = runPhases(vessel, loadRatio, [{ seconds: 30, input: { engineOrder: 'STOP', rudder: 1 } }])
+  const withWash = runPhases(vessel, loadRatio, [{ seconds: 30, input: { engineOrder: 'DEAD_SLOW_AHEAD', rudder: 1 } }])
+  return {
+    id: 'low-speed-rudder', vesselClass, loadRatio, duration: 30, ...withWash,
+    metrics: {
+      noFlowHeadingChange: Math.abs(noFlow.final.heading),
+      washHeadingChange: Math.abs(withWash.final.heading),
+      washSway: Math.abs(withWash.final.sway),
+    },
+  }
+}
+
+export function residualYawBenchmark(vesselClass: SimulationVesselClass, loadRatio = .5): BenchmarkResult {
+  const vessel = VESSEL_PARAMETERS[vesselClass]
+  const turn = runPhases(vessel, loadRatio, [{ seconds: 25, input: { engineOrder: 'HALF_AHEAD', rudder: .8 } }])
+  const coast = runPhasesFrom(turn.final, vessel, loadRatio, [{ seconds: .5, input: { engineOrder: 'STOP', rudder: 0 } }])
+  const counter = runPhasesFrom(turn.final, vessel, loadRatio, [{ seconds: .5, input: { engineOrder: 'STOP', rudder: -.8 } }])
+  return {
+    id: 'residual-yaw', vesselClass, loadRatio, duration: 25.5, final: coast.final, track: [...turn.track, ...coast.track],
+    metrics: {
+      turnYawRate: Math.abs(turn.final.yawRate),
+      coastYawRate: Math.abs(coast.final.yawRate),
+      counterYawRate: Math.abs(counter.final.yawRate),
+    },
+  }
+}
+
 export function benchmarkSuite(vesselClass: SimulationVesselClass, loadRatio = .5) {
   return [
     accelerationBenchmark(vesselClass, loadRatio),
@@ -97,6 +130,8 @@ export function benchmarkSuite(vesselClass: SimulationVesselClass, loadRatio = .
     crashStopBenchmark(vesselClass, loadRatio),
     reversePropWalkBenchmark(vesselClass, loadRatio),
     windDriftBenchmark(vesselClass, loadRatio),
+    lowSpeedRudderBenchmark(vesselClass, loadRatio),
+    residualYawBenchmark(vesselClass, loadRatio),
   ]
 }
 

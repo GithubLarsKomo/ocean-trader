@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { accelerationBenchmark, crashStopBenchmark, hardTurnBenchmark, reversePropWalkBenchmark, windDriftBenchmark } from './benchmarks'
+import {
+  accelerationBenchmark,
+  crashStopBenchmark,
+  hardTurnBenchmark,
+  lowSpeedRudderBenchmark,
+  residualYawBenchmark,
+  reversePropWalkBenchmark,
+  windDriftBenchmark,
+} from './benchmarks'
 
-describe('P4 manoeuvre benchmarks', () => {
+describe('P4/P5.3 manoeuvre benchmarks', () => {
   it('keeps acceleration hierarchy plausible', () => {
     const coaster = accelerationBenchmark('coaster')
     const panamax = accelerationBenchmark('panamax')
@@ -40,5 +48,19 @@ describe('P4 manoeuvre benchmarks', () => {
     const laden = accelerationBenchmark('handysize', 1)
     expect(empty.metrics.finalSurge).toBeGreaterThan(laden.metrics.finalSurge)
     expect(empty.metrics.distance).toBeGreaterThan(laden.metrics.distance)
+  })
+
+  it('captures rudder authority from propeller wash at low speed', () => {
+    const result = lowSpeedRudderBenchmark('handysize')
+    expect(result.metrics.noFlowHeadingChange).toBeLessThan(1e-10)
+    expect(result.metrics.washHeadingChange).toBeGreaterThan(.01)
+    expect(result.metrics.washSway).toBeGreaterThan(0)
+  })
+
+  it('captures residual yaw and faster damping with counter-rudder', () => {
+    const result = residualYawBenchmark('handysize')
+    expect(result.metrics.turnYawRate).toBeGreaterThan(1e-4)
+    expect(result.metrics.coastYawRate).toBeLessThan(result.metrics.turnYawRate)
+    expect(result.metrics.counterYawRate).toBeLessThan(result.metrics.coastYawRate)
   })
 })
