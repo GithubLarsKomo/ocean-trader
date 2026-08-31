@@ -6,6 +6,7 @@ import { loadState, VESSEL_PARAMETERS } from './vessel-parameters'
 const ahead = { throttle: 1, rudder: 0 }
 const fullAhead = { engineOrder: 'FULL_AHEAD' as const, rudder: 0 }
 const fullAstern = { engineOrder: 'FULL_ASTERN' as const, rudder: 0 }
+const MPS_PER_KNOT = 1 / 1.9438444924406
 
 describe('P4/P5.3 deterministic ship dynamics', () => {
   it('replays identical telegraph inputs deterministically', () => {
@@ -19,8 +20,8 @@ describe('P4/P5.3 deterministic ship dynamics', () => {
   it('keeps long runs finite', () => {
     const vessel = VESSEL_PARAMETERS.feeder
     const load = loadState(vessel, .8)
-    const result = simulate(initialManoeuvreState(), { throttle: .7, rudder: -.45 }, vessel, load, { windX: 0, windY: .08, currentX: .03, currentY: -.02 }, 900)
-    const numbers = [result.x, result.y, result.heading, result.surge, result.sway, result.yawRate, result.rudder, result.shaftDemand, result.shaftActual, result.reversalDelayRemaining, result.condition, result.elapsed]
+    const result = simulate(initialManoeuvreState(), { throttle: .7, rudder: -.45, bowThruster: .4 }, vessel, load, { windX: 0, windY: .08, currentX: .03, currentY: -.02 }, 900)
+    const numbers = [result.x, result.y, result.heading, result.surge, result.sway, result.yawRate, result.rudder, result.bowThruster, result.shaftDemand, result.shaftActual, result.reversalDelayRemaining, result.condition, result.elapsed]
     expect(numbers.every(Number.isFinite)).toBe(true)
   })
 
@@ -106,6 +107,41 @@ describe('P4/P5.3 deterministic ship dynamics', () => {
     expect(Math.abs(coasting.yawRate)).toBeGreaterThan(1e-4)
     expect(Math.abs(coasting.yawRate)).toBeLessThan(Math.abs(turning.yawRate))
     expect(Math.abs(countered.yawRate)).toBeLessThan(Math.abs(coasting.yawRate))
+  })
+
+  it('AT-05: right-handed prop walk is visible astern without rudder and much weaker ahead', () => {
+    const vessel = VESSEL_PARAMETERS.handysize
+    const load = loadState(vessel, .4)
+    const astern = simulate(initialManoeuvreState(), { engineOrder: 'HALF_ASTERN', rudder: 0 }, vessel, load, calmEnvironment, 30)
+    const aheadRun = simulate(initialManoeuvreState(), { engineOrder: 'HALF_AHEAD', rudder: 0 }, vessel, load, calmEnvironment, 30)
+
+    expect(astern.sway).toBeLessThan(0)
+    expect(astern.heading).toBeGreaterThan(0)
+    expect(aheadRun.heading).toBeLessThan(0)
+    expect(Math.abs(aheadRun.heading)).toBeLessThan(Math.abs(astern.heading) * .35)
+  })
+
+  it('AT-06: bow thruster turns the bow at rest, fades by four knots and is ineffective at five', () => {
+    const vessel = VESSEL_PARAMETERS.handysize
+    const load = loadState(vessel, .5)
+    const stopped = initialManoeuvreState()
+    const atRest = stepManoeuvre(stopped, { engineOrder: 'STOP', rudder: 0, bowThruster: 1 }, vessel, load, calmEnvironment)
+    expect(atRest.sway).toBeGreaterThan(0)
+    expect(atRest.yawRate).toBeGreaterThan(0)
+    expect(atRest.bowThruster).toBe(1)
+
+    const four = { ...initialManoeuvreState(), surge: 4 * MPS_PER_KNOT }
+    const fourBase = stepManoeuvre(four, { engineOrder: 'STOP', rudder: 0, bowThruster: 0 }, vessel, load, calmEnvironment)
+    const fourThruster = stepManoeuvre(four, { engineOrder: 'STOP', rudder: 0, bowThruster: 1 }, vessel, load, calmEnvironment)
+    const fourSwayDelta = fourThruster.sway - fourBase.sway
+    expect(fourSwayDelta / atRest.sway).toBeLessThan(.2)
+    expect(fourSwayDelta / atRest.sway).toBeGreaterThan(.1)
+
+    const five = { ...initialManoeuvreState(), surge: 5 * MPS_PER_KNOT }
+    const fiveBase = stepManoeuvre(five, { engineOrder: 'STOP', rudder: 0, bowThruster: 0 }, vessel, load, calmEnvironment)
+    const fiveThruster = stepManoeuvre(five, { engineOrder: 'STOP', rudder: 0, bowThruster: 1 }, vessel, load, calmEnvironment)
+    expect(fiveThruster.sway - fiveBase.sway).toBeCloseTo(0, 12)
+    expect(fiveThruster.yawRate - fiveBase.yawRate).toBeCloseTo(0, 12)
   })
 
   it('uses a fixed 30 Hz baseline step', () => {
