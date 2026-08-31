@@ -1,5 +1,6 @@
 .hud{grid-template-columns:repeat(10,minmax(0,1fr))}
 .scenario-picker{display:flex;align-items:center;gap:.35rem;font-size:.62rem;letter-spacing:.08em;color:#c5d6dc}
+.scenario-picker[hidden]{display:none}
 .scenario-picker select{max-width:8.4rem;border:1px solid rgba(255,255,255,.22);border-radius:.35rem;background:#0b202a;color:#eef7f8;padding:.28rem .35rem;font:inherit}
 @media(min-width:900px){.hud{grid-template-columns:repeat(10,78px)}}
 @media(max-width:600px){.hud{grid-template-columns:repeat(5,minmax(0,1fr))}.scenario-picker span{display:none}.scenario-picker select{max-width:6.8rem}}
