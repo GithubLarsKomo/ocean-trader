@@ -32,15 +32,28 @@ function holdStable(seconds: number) {
   return { state, operation }
 }
 
-function atQuay(normalSpeed: number, longitudinalSpeed = 0) {
+function quayApproach(normalSpeed: number, longitudinalSpeed = 0) {
   const quay = ROTTERDAM_P5.quays[0]
-  return {
+  const halfBeamUnits = Math.max(1.05, vessel.beamMeters / 24)
+  const waterEdgeZ = quay.z + quay.width / 2
+  // Begin just outside the swept-contact margin, then move one real physics tick
+  // toward the quay. Position delta is in simulation metres and renderScale maps
+  // it into scene units, exactly as the production loop does.
+  const centerZ = waterEdgeZ + halfBeamUnits + .13
+  const previous: ManoeuvreState = {
     ...initialManoeuvreState(),
     x: (quay.x - ROTTERDAM_P5.spawn.x) / ROTTERDAM_P5.renderScale,
-    y: (quay.z + quay.width / 2 + 1.0 - ROTTERDAM_P5.spawn.z) / ROTTERDAM_P5.renderScale,
+    y: (centerZ - ROTTERDAM_P5.spawn.z) / ROTTERDAM_P5.renderScale,
     surge: longitudinalSpeed,
     sway: -normalSpeed,
   }
+  const state: ManoeuvreState = {
+    ...previous,
+    x: previous.x + longitudinalSpeed * DT,
+    y: previous.y - normalSpeed * DT,
+    elapsed: DT,
+  }
+  return { previous, state }
 }
 
 describe('P5 harbour operations', () => {
@@ -84,8 +97,7 @@ describe('P5 harbour operations', () => {
   })
 
   it('allows controlled fender contact below 0.10 m/s without damage', () => {
-    const previous = atQuay(.08, .8)
-    const state = { ...previous, elapsed: DT }
+    const { previous, state } = quayApproach(.08, .8)
     const result = evaluateHarbourOperation(state, previous, vessel, load, ROTTERDAM_P5, initialHarbourOperationState())
     expect(result.operation.collisions).toBe(0)
     expect(result.operation.damage).toBe(0)
@@ -94,16 +106,14 @@ describe('P5 harbour operations', () => {
   })
 
   it('bases quay severity on normal speed rather than total longitudinal speed', () => {
-    const previous = atQuay(.05, 1.4)
-    const state = { ...previous, elapsed: DT }
+    const { previous, state } = quayApproach(.05, 1.4)
     const result = evaluateHarbourOperation(state, previous, vessel, load, ROTTERDAM_P5, initialHarbourOperationState())
     expect(result.operation.collisions).toBe(0)
     expect(result.operation.damage).toBe(0)
   })
 
   it('turns hard lateral berth contact into deterministic damage and no settlement', () => {
-    const previous = atQuay(.35)
-    const state = { ...previous, elapsed: DT }
+    const { previous, state } = quayApproach(.35)
     const result = evaluateHarbourOperation(state, previous, vessel, load, ROTTERDAM_P5, initialHarbourOperationState())
     expect(result.operation.collisions).toBe(1)
     expect(result.operation.damage).toBeGreaterThan(0)
@@ -124,8 +134,7 @@ describe('P5 harbour operations', () => {
   })
 
   it('does not stack damage every physics tick while still touching an obstacle', () => {
-    const previous = atQuay(.5)
-    const state = { ...previous, elapsed: DT }
+    const { previous, state } = quayApproach(.5)
     const first = evaluateHarbourOperation(state, previous, vessel, load, ROTTERDAM_P5, initialHarbourOperationState())
     const secondState = { ...first.state, elapsed: first.state.elapsed + DT }
     const second = evaluateHarbourOperation(secondState, first.state, vessel, load, ROTTERDAM_P5, first.operation)
