@@ -1,0 +1,3 @@
+.hud{grid-template-columns:repeat(10,minmax(0,1fr))}
+@media(min-width:900px){.hud{grid-template-columns:repeat(10,78px)}}
+@media(max-width:600px){.hud{grid-template-columns:repeat(5,minmax(0,1fr))}}
