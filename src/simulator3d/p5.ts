@@ -1,6 +1,6 @@
 import './p5.css'
 import { FIXED_DT, stepManoeuvre } from '../simulation/engine'
-import { initialManoeuvreState, type EngineOrder, type EnvironmentState, type ManoeuvreInput, type ManoeuvreState } from '../simulation/state'
+import { calmEnvironment, initialManoeuvreState, type EngineOrder, type EnvironmentState, type ManoeuvreInput, type ManoeuvreState } from '../simulation/state'
 import { engineOrderFromLegacyThrottle } from '../simulation/forces/propulsion'
 import { navigationMetrics, KNOTS_PER_MPS } from '../simulation/units'
 import { loadState as simulationLoadState, VESSEL_PARAMETERS } from '../simulation/vessel-parameters'
@@ -9,6 +9,7 @@ import { clearHarbourAttempt, loadHarbourAttempt, saveHarbourAttempt } from './a
 import { loadCampaignArrival, settleCampaignArrival, simulationLoadForArrival } from './campaign'
 import { evaluateHarbourOperation, initialHarbourOperationState } from './operations'
 import { ROTTERDAM_P5, rotterdamScenario, type P5HarbourScenario } from './rotterdam'
+import { rudderPresentation } from './rudder-presentation'
 import { createP5Scene } from './scene'
 
 const canvas = document.querySelector<HTMLCanvasElement>('#p5-canvas')
@@ -31,6 +32,7 @@ const vessel = arrival ? VESSEL_PARAMETERS[arrival.vesselClass] : VESSEL_PARAMET
 const load = arrival ? simulationLoadForArrival(arrival) : simulationLoadState(vessel, .6)
 const sim = createP5Scene(canvas, scenario)
 if (scenario.showBerth === false) sim.scene.getMeshByName('berth-marker')?.setEnabled(false)
+const rudderMesh = sim.scene.getMeshByName('rudder')
 const audio = createShipAudio()
 const savedAttempt = arrival ? loadHarbourAttempt(sessionStorage, arrival.vesselId) : null
 
@@ -45,7 +47,12 @@ function freshOperation(selected: P5HarbourScenario) {
 let state = savedAttempt?.state ?? freshState(arrival?.initialCondition ?? 100)
 let operation = savedAttempt?.operation ?? freshOperation(scenario)
 let input: ManoeuvreInput = savedAttempt?.input ?? { engineOrder: 'STOP', rudder: 0, bowThruster: 0 }
-let uiRudder = input.rudder
+// Momentary thruster commands never survive page load. Rudder has no actuator lag,
+// so reconcile persisted state and command immediately at the presentation boundary.
+input = { ...input, bowThruster: 0 }
+let uiRudder = rudderPresentation(input.rudder).normalized
+state = { ...state, rudder: uiRudder, bowThruster: 0 }
+let manoeuvreArmed = false
 let accumulator = 0
 let previous = performance.now()
 let campaignSettled = false
@@ -73,12 +80,12 @@ const rudderVisual = q('[data-rudder-visual]')
 const soundButton = document.querySelector<HTMLButtonElement>('[data-sound]')
 const returnButton = document.querySelector<HTMLButtonElement>('[data-return-campaign]')
 const thrusterButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-bow-thruster]')]
+const rudder = document.querySelector<HTMLInputElement>('#rudder')
 
 const windKnots = (HARBOUR_ENVIRONMENT.windSpeedMps ?? 0) * KNOTS_PER_MPS
 const currentKnots = (HARBOUR_ENVIRONMENT.currentSpeedMps ?? 0) * KNOTS_PER_MPS
 const environmentLabel = `WND ${windKnots.toFixed(0)} kn/${HARBOUR_ENVIRONMENT.windFromDeg ?? 0}° · CUR ${currentKnots.toFixed(1)} kn/${HARBOUR_ENVIRONMENT.currentToDeg ?? 0}°`
 if (scenarioTitleEl) scenarioTitleEl.textContent = scenario.name
-if (statusEl) statusEl.textContent = operation.message
 if (contextEl) contextEl.textContent = arrival
   ? `${arrival.vesselName} · ${arrival.destination} · ${(arrival.loadRatio * 100).toFixed(0)}% load · ${environmentLabel}`
   : `${scenario.shortName} · 60% Handysize · ${environmentLabel}`
@@ -115,6 +122,10 @@ const engineOrders: Record<string, EngineOrder> = {
 const engineOrderLabel = (order: EngineOrder) => order.replaceAll('_', ' ')
 const commandedOrder = () => input.engineOrder ?? engineOrderFromLegacyThrottle(input.throttle ?? 0)
 
+function armManoeuvre() {
+  if (!operation.docked) manoeuvreArmed = true
+}
+
 async function ensureSound() {
   if (audio.enabled) return
   await audio.enable()
@@ -141,6 +152,25 @@ function syncThrusterButtons() {
   })
 }
 
+function syncRudderPresentation() {
+  const presentation = rudderPresentation(uiRudder)
+  if (rudderEl) rudderEl.textContent = presentation.label
+  if (rudderVisual) rudderVisual.style.transform = `rotate(${presentation.cssRotationDeg}deg)`
+  // createP5Scene still owns vessel construction. Override only the visual angle
+  // here so HUD, slider and vessel rudder share one explicit bridge convention.
+  if (rudderMesh) rudderMesh.rotation.y = presentation.meshRotationRad
+}
+
+function setRudderCommand(command: number, persist = true) {
+  const presentation = rudderPresentation(command)
+  uiRudder = presentation.normalized
+  input = { ...input, rudder: uiRudder }
+  state = { ...state, rudder: uiRudder }
+  if (rudder) rudder.value = String(uiRudder)
+  syncRudderPresentation()
+  if (persist) persistAttempt()
+}
+
 function setBowThruster(command: number) {
   const value = operation.docked ? 0 : Math.max(-1, Math.min(1, command))
   input = { ...input, bowThruster: value }
@@ -155,9 +185,11 @@ function releaseThruster(pointerId?: number) {
 
 syncEngineButtons()
 syncThrusterButtons()
+setRudderCommand(uiRudder, false)
 document.querySelectorAll<HTMLButtonElement>('[data-engine-order]').forEach(button => button.addEventListener('click', () => {
   const order = engineOrders[button.dataset.engineOrder ?? '']
   if (!order || operation.docked) return
+  armManoeuvre()
   void ensureSound()
   input = { ...input, engineOrder: order }
   persistAttempt()
@@ -168,6 +200,7 @@ thrusterButtons.forEach(button => {
   button.addEventListener('pointerdown', event => {
     event.preventDefault()
     if (operation.docked) return
+    armManoeuvre()
     void ensureSound()
     activeThrusterPointer = event.pointerId
     button.setPointerCapture(event.pointerId)
@@ -180,6 +213,7 @@ thrusterButtons.forEach(button => {
     if (event.key !== ' ' && event.key !== 'Enter') return
     event.preventDefault()
     if (operation.docked) return
+    armManoeuvre()
     void ensureSound()
     setBowThruster(Number(button.dataset.bowThruster ?? 0))
   })
@@ -192,15 +226,13 @@ window.addEventListener('pointercancel', event => releaseThruster(event.pointerI
 window.addEventListener('blur', () => releaseThruster())
 document.addEventListener('visibilitychange', () => { if (document.hidden) releaseThruster() })
 
-const rudder = document.querySelector<HTMLInputElement>('#rudder')
 if (rudder) {
   rudder.value = String(uiRudder)
   rudder.addEventListener('input', () => {
     if (operation.docked) return
+    armManoeuvre()
     void ensureSound()
-    uiRudder = Number(rudder.value)
-    input = { ...input, rudder: uiRudder }
-    persistAttempt()
+    setRudderCommand(Number(rudder.value))
   })
 }
 
@@ -240,10 +272,10 @@ function reset() {
     audibleCollisionCount = 0
   }
 
+  manoeuvreArmed = false
   input = { engineOrder: 'STOP', rudder: 0, bowThruster: 0 }
-  uiRudder = 0
   activeThrusterPointer = null
-  if (rudder) rudder.value = '0'
+  setRudderCommand(0, false)
   syncEngineButtons()
   syncThrusterButtons()
   persistAttempt()
@@ -261,23 +293,24 @@ function settleIfDocked() {
 
 function renderHud() {
   const headingDeg = ((state.heading * 180 / Math.PI) % 360 + 360) % 360
-  const navigation = navigationMetrics(state, HARBOUR_ENVIRONMENT)
-  const rudderDeg = Math.round(Math.abs(uiRudder) * 35)
-  const rudderSide = Math.abs(uiRudder) < .025 ? 'MID' : uiRudder < 0 ? 'PORT' : 'STBD'
+  const navigation = navigationMetrics(state, manoeuvreArmed ? HARBOUR_ENVIRONMENT : calmEnvironment)
   const bowLabel = Math.abs(state.bowThruster) < .01 ? 'OFF' : state.bowThruster < 0 ? 'PORT' : 'STBD'
   if (headingEl) headingEl.textContent = `${headingDeg.toFixed(0).padStart(3, '0')}°`
   if (cogEl) cogEl.textContent = `${navigation.cogDeg.toFixed(0).padStart(3, '0')}°`
   if (stwEl) stwEl.textContent = `${navigation.stwKnots.toFixed(1)} kn`
   if (speedEl) speedEl.textContent = `${navigation.sogKnots.toFixed(1)} kn`
   if (rotEl) rotEl.textContent = `${(state.yawRate * 180 / Math.PI * 60).toFixed(1)}°/min`
-  if (rudderEl) rudderEl.textContent = rudderSide === 'MID' ? 'MID' : `${rudderSide} ${rudderDeg}°`
-  if (rudderVisual) rudderVisual.style.transform = `rotate(${uiRudder * 35}deg)`
+  syncRudderPresentation()
   if (engineEl) engineEl.textContent = engineOrderLabel(commandedOrder())
   if (bowThrusterEl) bowThrusterEl.textContent = bowLabel
   if (draftEl) draftEl.textContent = `${load.draftMeters.toFixed(1)} m`
   if (conditionEl) conditionEl.textContent = `${state.condition.toFixed(0)}%`
-  if (statusEl) statusEl.textContent = operation.message
-  audio.setMotion(operation.docked ? 0 : state.shaftActual, navigation.stwKnots)
+  if (statusEl) {
+    statusEl.textContent = !operation.docked && !manoeuvreArmed
+      ? `${savedAttempt ? 'PAUSED · manoeuvre restored' : 'READY · manoeuvre paused'} · touch a control to continue`
+      : operation.message
+  }
+  audio.setMotion(operation.docked || !manoeuvreArmed ? 0 : state.shaftActual, navigation.stwKnots)
 }
 
 sim.engine.runRenderLoop(() => {
@@ -285,7 +318,7 @@ sim.engine.runRenderLoop(() => {
   accumulator += Math.min(.1, (now - previous) / 1000)
   previous = now
   while (accumulator >= FIXED_DT) {
-    if (!operation.docked) {
+    if (!operation.docked && manoeuvreArmed) {
       const before = state
       const stepped = stepManoeuvre(state, input, vessel, load, HARBOUR_ENVIRONMENT, FIXED_DT)
       const evaluated = evaluateHarbourOperation(stepped, before, vessel, load, scenario, operation)
@@ -297,9 +330,13 @@ sim.engine.runRenderLoop(() => {
       }
       if (operation.docked) {
         input = { engineOrder: 'STOP', rudder: 0, bowThruster: 0 }
+        state = { ...state, rudder: 0, bowThruster: 0 }
+        uiRudder = 0
         activeThrusterPointer = null
+        if (rudder) rudder.value = '0'
         syncEngineButtons()
         syncThrusterButtons()
+        syncRudderPresentation()
       }
       persistenceTicks += 1
       if (persistenceTicks >= 15) {
@@ -311,6 +348,9 @@ sim.engine.runRenderLoop(() => {
   }
   settleIfDocked()
   sim.renderState(state)
+  // Scene coordinates and CSS coordinates differ; enforce the shared bridge
+  // presentation after scene-state rendering so both visual rudders agree.
+  syncRudderPresentation()
   renderHud()
   sim.scene.render()
 })
