@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   accelerationBenchmark,
+  bowThrusterBenchmark,
   crashStopBenchmark,
   hardTurnBenchmark,
   lowSpeedRudderBenchmark,
@@ -31,10 +32,12 @@ describe('P4/P5.3 manoeuvre benchmarks', () => {
     expect(panamax.metrics.stopDistance).toBeGreaterThan(coaster.metrics.stopDistance)
   })
 
-  it('produces reverse prop walk without rudder input', () => {
+  it('produces correctly directed reverse prop walk without rudder input', () => {
     const result = reversePropWalkBenchmark('handysize')
     expect(result.metrics.headingChange).toBeGreaterThan(.01)
     expect(result.metrics.lateralOffset).toBeGreaterThan(0)
+    expect(result.metrics.signedHeading).toBeGreaterThan(0)
+    expect(result.metrics.signedSway).toBeLessThan(0)
   })
 
   it('makes high-windage feeder drift more than coaster', () => {
@@ -62,5 +65,12 @@ describe('P4/P5.3 manoeuvre benchmarks', () => {
     expect(result.metrics.turnYawRate).toBeGreaterThan(1e-4)
     expect(result.metrics.coastYawRate).toBeLessThan(result.metrics.turnYawRate)
     expect(result.metrics.counterYawRate).toBeLessThan(result.metrics.coastYawRate)
+  })
+
+  it('captures useful bow-thruster authority at harbour speed', () => {
+    const result = bowThrusterBenchmark('handysize')
+    expect(result.metrics.headingChange).toBeGreaterThan(.01)
+    expect(result.metrics.lateralOffset).toBeGreaterThan(0)
+    expect(result.metrics.maxYawRate).toBeGreaterThan(1e-4)
   })
 })
