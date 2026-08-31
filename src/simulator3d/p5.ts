@@ -1,6 +1,6 @@
 import './p5.css'
 import { FIXED_DT, stepManoeuvre } from '../simulation/engine'
-import { initialManoeuvreState, type EngineOrder, type EnvironmentState, type ManoeuvreInput } from '../simulation/state'
+import { initialManoeuvreState, type EngineOrder, type EnvironmentState, type ManoeuvreInput, type ManoeuvreState } from '../simulation/state'
 import { engineOrderFromLegacyThrottle } from '../simulation/forces/propulsion'
 import { navigationMetrics, KNOTS_PER_MPS } from '../simulation/units'
 import { loadState as simulationLoadState, VESSEL_PARAMETERS } from '../simulation/vessel-parameters'
@@ -8,7 +8,7 @@ import { createShipAudio } from './audio'
 import { clearHarbourAttempt, loadHarbourAttempt, saveHarbourAttempt } from './attempt'
 import { loadCampaignArrival, settleCampaignArrival, simulationLoadForArrival } from './campaign'
 import { evaluateHarbourOperation, initialHarbourOperationState } from './operations'
-import { ROTTERDAM_P5 } from './rotterdam'
+import { ROTTERDAM_P5, rotterdamScenario, type P5HarbourScenario } from './rotterdam'
 import { createP5Scene } from './scene'
 
 const canvas = document.querySelector<HTMLCanvasElement>('#p5-canvas')
@@ -21,15 +21,29 @@ const HARBOUR_ENVIRONMENT: EnvironmentState = {
   currentToDeg: 105,
 }
 
-const vesselId = new URLSearchParams(window.location.search).get('vessel')
+const params = new URLSearchParams(window.location.search)
+const vesselId = params.get('vessel')
 const arrival = vesselId ? loadCampaignArrival(localStorage, vesselId) : null
+// Campaign arrivals are intentionally locked to the authoritative Alongside scenario.
+// Scenario selection exists only for standalone training mode.
+const scenario = arrival ? ROTTERDAM_P5 : rotterdamScenario(params.get('scenario'))
 const vessel = arrival ? VESSEL_PARAMETERS[arrival.vesselClass] : VESSEL_PARAMETERS.handysize
 const load = arrival ? simulationLoadForArrival(arrival) : simulationLoadState(vessel, .6)
-const sim = createP5Scene(canvas, ROTTERDAM_P5)
+const sim = createP5Scene(canvas, scenario)
+if (scenario.showBerth === false) sim.scene.getMeshByName('berth-marker')?.setEnabled(false)
 const audio = createShipAudio()
 const savedAttempt = arrival ? loadHarbourAttempt(sessionStorage, arrival.vesselId) : null
-let state = savedAttempt?.state ?? initialManoeuvreState(arrival?.initialCondition ?? 100)
-let operation = savedAttempt?.operation ?? initialHarbourOperationState()
+
+function freshState(condition = 100): ManoeuvreState {
+  return { ...initialManoeuvreState(condition), heading: scenario.spawn.heading }
+}
+
+function freshOperation(selected: P5HarbourScenario) {
+  return { ...initialHarbourOperationState(), message: selected.instructions }
+}
+
+let state = savedAttempt?.state ?? freshState(arrival?.initialCondition ?? 100)
+let operation = savedAttempt?.operation ?? freshOperation(scenario)
 let input: ManoeuvreInput = savedAttempt?.input ?? { engineOrder: 'STOP', rudder: 0, bowThruster: 0 }
 let uiRudder = input.rudder
 let accumulator = 0
@@ -52,6 +66,9 @@ const draftEl = q('[data-draft]')
 const conditionEl = q('[data-condition]')
 const statusEl = q('[data-status]')
 const contextEl = q('[data-context]')
+const scenarioTitleEl = q('[data-scenario-title]')
+const scenarioPicker = q('[data-scenario-picker]')
+const scenarioSelect = document.querySelector<HTMLSelectElement>('[data-scenario-select]')
 const rudderVisual = q('[data-rudder-visual]')
 const soundButton = document.querySelector<HTMLButtonElement>('[data-sound]')
 const returnButton = document.querySelector<HTMLButtonElement>('[data-return-campaign]')
@@ -60,9 +77,26 @@ const thrusterButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-
 const windKnots = (HARBOUR_ENVIRONMENT.windSpeedMps ?? 0) * KNOTS_PER_MPS
 const currentKnots = (HARBOUR_ENVIRONMENT.currentSpeedMps ?? 0) * KNOTS_PER_MPS
 const environmentLabel = `WND ${windKnots.toFixed(0)} kn/${HARBOUR_ENVIRONMENT.windFromDeg ?? 0}° · CUR ${currentKnots.toFixed(1)} kn/${HARBOUR_ENVIRONMENT.currentToDeg ?? 0}°`
+if (scenarioTitleEl) scenarioTitleEl.textContent = scenario.name
+if (statusEl) statusEl.textContent = operation.message
 if (contextEl) contextEl.textContent = arrival
   ? `${arrival.vesselName} · ${arrival.destination} · ${(arrival.loadRatio * 100).toFixed(0)}% load · ${environmentLabel}`
-  : `Training · 60% Handysize · ${environmentLabel}`
+  : `${scenario.shortName} · 60% Handysize · ${environmentLabel}`
+
+if (scenarioPicker) scenarioPicker.hidden = Boolean(arrival)
+if (scenarioSelect) {
+  scenarioSelect.value = scenario.id
+  scenarioSelect.disabled = Boolean(arrival)
+  scenarioSelect.addEventListener('change', () => {
+    if (arrival) return
+    const next = rotterdamScenario(scenarioSelect.value)
+    const url = new URL(window.location.href)
+    url.searchParams.delete('vessel')
+    url.searchParams.set('scenario', next.id)
+    window.location.assign(url.toString())
+  })
+}
+
 if (returnButton) {
   returnButton.hidden = !arrival
   returnButton.disabled = true
@@ -165,8 +199,6 @@ if (rudder) {
     if (operation.docked) return
     void ensureSound()
     uiRudder = Number(rudder.value)
-    // Helm convention: PORT is negative, STBD is positive. In the renderer
-    // positive yaw is a visible clockwise/starboard turn, so no sign flip is needed.
     input = { ...input, rudder: uiRudder }
     persistAttempt()
   })
@@ -189,15 +221,28 @@ document.querySelectorAll<HTMLButtonElement>('[data-camera]').forEach(button => 
 
 function reset() {
   if (campaignSettled) return
-  const retainedCondition = state.condition
-  const retainedDamage = operation.damage
-  const retainedCollisions = operation.collisions
-  state = initialManoeuvreState(retainedCondition)
-  operation = { ...initialHarbourOperationState(), damage: retainedDamage, collisions: retainedCollisions, message: retainedCollisions ? `Repositioned · ${retainedDamage.toFixed(1)}% damage retained` : 'Approach berth' }
+
+  if (arrival) {
+    const retainedCondition = state.condition
+    const retainedDamage = operation.damage
+    const retainedCollisions = operation.collisions
+    state = freshState(retainedCondition)
+    operation = {
+      ...freshOperation(scenario),
+      damage: retainedDamage,
+      collisions: retainedCollisions,
+      message: retainedCollisions ? `Repositioned · ${retainedDamage.toFixed(1)}% damage retained` : scenario.instructions,
+    }
+    audibleCollisionCount = retainedCollisions
+  } else {
+    state = freshState(100)
+    operation = freshOperation(scenario)
+    audibleCollisionCount = 0
+  }
+
   input = { engineOrder: 'STOP', rudder: 0, bowThruster: 0 }
   uiRudder = 0
   activeThrusterPointer = null
-  audibleCollisionCount = retainedCollisions
   if (rudder) rudder.value = '0'
   syncEngineButtons()
   syncThrusterButtons()
@@ -243,11 +288,11 @@ sim.engine.runRenderLoop(() => {
     if (!operation.docked) {
       const before = state
       const stepped = stepManoeuvre(state, input, vessel, load, HARBOUR_ENVIRONMENT, FIXED_DT)
-      const evaluated = evaluateHarbourOperation(stepped, before, vessel, load, ROTTERDAM_P5, operation)
+      const evaluated = evaluateHarbourOperation(stepped, before, vessel, load, scenario, operation)
       state = evaluated.state
       operation = evaluated.operation
       if (operation.collisions > audibleCollisionCount) {
-        audio.collision(operation.message.startsWith('Quay') ? 'quay' : 'buoy')
+        audio.collision(operation.message.includes('Quay') || operation.message.includes('berthing') ? 'quay' : 'buoy')
         audibleCollisionCount = operation.collisions
       }
       if (operation.docked) {
