@@ -1,6 +1,6 @@
 import { ENGINE_ORDER_TARGETS, engineOrderFromLegacyThrottle } from '../simulation/forces/propulsion'
 import { initialManoeuvreState, type EngineOrder, type ManoeuvreInput, type ManoeuvreState } from '../simulation/state'
-import type { HarbourOperationState } from './operations'
+import { initialHarbourOperationState, type BerthingMetrics, type HarbourOperationState } from './operations'
 
 export type HarbourAttempt = {
   version: 2
@@ -10,9 +10,11 @@ export type HarbourAttempt = {
   input: ManoeuvreInput
 }
 
-type StoredAttempt = Partial<Omit<HarbourAttempt, 'version' | 'state' | 'input'>> & {
+type StoredOperation = Partial<HarbourOperationState> & { lastBerthingMetrics?: Partial<BerthingMetrics> }
+type StoredAttempt = Partial<Omit<HarbourAttempt, 'version' | 'state' | 'input' | 'operation'>> & {
   version?: 1 | 2
   state?: Partial<ManoeuvreState> & { throttle?: number }
+  operation?: StoredOperation
   input?: Partial<ManoeuvreInput>
 }
 
@@ -67,17 +69,62 @@ function normalizeState(value: StoredAttempt['state'], input: ManoeuvreInput): M
   }
 }
 
+function normalizeMetrics(value: StoredOperation['lastBerthingMetrics']): BerthingMetrics | undefined {
+  if (
+    !value
+    || !finite(value.longitudinalErrorUnits)
+    || !finite(value.lateralErrorUnits)
+    || !finite(value.headingErrorDeg)
+    || !finite(value.longitudinalSpeedMps)
+    || !finite(value.lateralSpeedMps)
+    || !finite(value.yawRateDegPerSec)
+  ) return undefined
+  return {
+    longitudinalErrorUnits: Math.max(0, value.longitudinalErrorUnits),
+    lateralErrorUnits: Math.max(0, value.lateralErrorUnits),
+    headingErrorDeg: Math.max(0, value.headingErrorDeg),
+    longitudinalSpeedMps: value.longitudinalSpeedMps,
+    lateralSpeedMps: value.lateralSpeedMps,
+    yawRateDegPerSec: Math.max(0, value.yawRateDegPerSec),
+  }
+}
+
+function normalizeOperation(value: StoredAttempt['operation']): HarbourOperationState | null {
+  if (!value) return null
+  const baseline = initialHarbourOperationState()
+  if (
+    value.collisions !== undefined && !finite(value.collisions)
+    || value.damage !== undefined && !finite(value.damage)
+    || value.docked !== undefined && typeof value.docked !== 'boolean'
+    || value.contactActive !== undefined && typeof value.contactActive !== 'boolean'
+    || value.berthStableSeconds !== undefined && !finite(value.berthStableSeconds)
+    || value.message !== undefined && typeof value.message !== 'string'
+  ) return null
+  return {
+    ...baseline,
+    collisions: finite(value.collisions) ? Math.max(0, Math.floor(value.collisions)) : baseline.collisions,
+    damage: finite(value.damage) ? Math.max(0, value.damage) : baseline.damage,
+    docked: typeof value.docked === 'boolean' ? value.docked : baseline.docked,
+    contactActive: typeof value.contactActive === 'boolean' ? value.contactActive : baseline.contactActive,
+    berthStableSeconds: finite(value.berthStableSeconds) ? Math.max(0, value.berthStableSeconds) : 0,
+    message: typeof value.message === 'string' ? value.message : baseline.message,
+    lastBerthingMetrics: normalizeMetrics(value.lastBerthingMetrics),
+  }
+}
+
 export function loadHarbourAttempt(storage: Pick<Storage, 'getItem'>, vesselId: string): HarbourAttempt | null {
   const raw = storage.getItem(attemptKey(vesselId)) ?? storage.getItem(legacyAttemptKey(vesselId))
   if (!raw) return null
   try {
     const value = JSON.parse(raw) as StoredAttempt
-    if ((value.version !== 1 && value.version !== 2) || value.vesselId !== vesselId || !value.operation) return null
+    if ((value.version !== 1 && value.version !== 2) || value.vesselId !== vesselId) return null
     const input = normalizeInput(value.input)
     if (!input) return null
     const state = normalizeState(value.state, input)
     if (!state) return null
-    return { version: 2, vesselId, state, operation: value.operation, input }
+    const operation = normalizeOperation(value.operation)
+    if (!operation) return null
+    return { version: 2, vesselId, state, operation, input }
   } catch { return null }
 }
 
