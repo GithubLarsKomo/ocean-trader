@@ -13,7 +13,9 @@ export type ManoeuvreState = {
   x: number
   y: number
   heading: number
+  /** Water-relative longitudinal speed in m/s. */
   surge: number
+  /** Water-relative lateral speed in m/s. */
   sway: number
   yawRate: number
   rudder: number
@@ -34,11 +36,21 @@ export type ManoeuvreInput = {
   throttle?: number
 }
 
+/**
+ * Maritime environment in simulator navigation coordinates:
+ * heading/bearing 0° is world +X, 90° is world +Y, positive clockwise/starboard.
+ * Wind direction follows maritime convention (direction FROM); current uses direction TO.
+ * Legacy vector fields remain temporarily supported for P4/P5.2 benchmark compatibility.
+ */
 export type EnvironmentState = {
-  windX: number
-  windY: number
-  currentX: number
-  currentY: number
+  windSpeedMps?: number
+  windFromDeg?: number
+  currentSpeedMps?: number
+  currentToDeg?: number
+  windX?: number
+  windY?: number
+  currentX?: number
+  currentY?: number
 }
 
 export type VesselLoadState = {
@@ -49,10 +61,10 @@ export type VesselLoadState = {
 }
 
 export const calmEnvironment: EnvironmentState = {
-  windX: 0,
-  windY: 0,
-  currentX: 0,
-  currentY: 0,
+  windSpeedMps: 0,
+  windFromDeg: 0,
+  currentSpeedMps: 0,
+  currentToDeg: 0,
 }
 
 export function initialManoeuvreState(condition = 100): ManoeuvreState {
