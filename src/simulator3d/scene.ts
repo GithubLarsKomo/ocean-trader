@@ -1,6 +1,7 @@
 import { ArcRotateCamera, Color3, Color4, DirectionalLight, Engine, FreeCamera, HemisphericLight, Mesh, MeshBuilder, Scene, StandardMaterial, Vector3 } from '@babylonjs/core'
 import type { ManoeuvreState } from '../simulation/state'
 import type { P5HarbourScenario } from './rotterdam'
+import { createHarbourEnvironment } from './environment'
 import { createRotterdamTerminal } from './terminal'
 import { createVesselVisual } from './vessel-model'
 import { createAnimatedWater } from './water'
@@ -42,6 +43,7 @@ export function createP5Scene(canvas: HTMLCanvasElement, scenario: P5HarbourScen
 
   const water = createAnimatedWater(scene)
   createRotterdamTerminal(scene)
+  createHarbourEnvironment(scene)
 
   const quayMat = material(scene, 'quay-mat', new Color3(.29, .30, .29))
   const edgeMat = material(scene, 'quay-edge', new Color3(.78, .69, .42), new Color3(.07, .05, .01))
