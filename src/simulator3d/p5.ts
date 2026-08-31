@@ -1,12 +1,13 @@
 import './p5.css'
 import { FIXED_DT, stepManoeuvre } from '../simulation/engine'
-import { calmEnvironment, initialManoeuvreState, type EngineOrder, type EnvironmentState, type ManoeuvreInput, type ManoeuvreState } from '../simulation/state'
+import { calmEnvironment, initialManoeuvreState, type EngineOrder, type ManoeuvreInput, type ManoeuvreState } from '../simulation/state'
 import { engineOrderFromLegacyThrottle } from '../simulation/forces/propulsion'
 import { navigationMetrics, KNOTS_PER_MPS } from '../simulation/units'
 import { loadState as simulationLoadState, VESSEL_PARAMETERS } from '../simulation/vessel-parameters'
 import { createShipAudio } from './audio'
 import { clearHarbourAttempt, loadHarbourAttempt, saveHarbourAttempt } from './attempt'
 import { loadCampaignArrival, settleCampaignArrival, simulationLoadForArrival } from './campaign'
+import { selectHarbourEnvironment } from './environment-profile'
 import { evaluateHarbourOperation, initialHarbourOperationState } from './operations'
 import { ROTTERDAM_P5, rotterdamScenario, type P5HarbourScenario } from './rotterdam'
 import { rudderPresentation } from './rudder-presentation'
@@ -15,16 +16,10 @@ import { createP5Scene } from './scene'
 const canvas = document.querySelector<HTMLCanvasElement>('#p5-canvas')
 if (!canvas) throw new Error('P5 canvas missing')
 
-const HARBOUR_ENVIRONMENT: EnvironmentState = {
-  windSpeedMps: 5.5,
-  windFromDeg: 240,
-  currentSpeedMps: .25,
-  currentToDeg: 105,
-}
-
 const params = new URLSearchParams(window.location.search)
 const vesselId = params.get('vessel')
 const arrival = vesselId ? loadCampaignArrival(localStorage, vesselId) : null
+const { mode: environmentMode, environment: HARBOUR_ENVIRONMENT } = selectHarbourEnvironment(params.get('environment'), Boolean(arrival))
 // Campaign arrivals are intentionally locked to the authoritative Alongside scenario.
 // Scenario selection exists only for standalone training mode.
 const scenario = arrival ? ROTTERDAM_P5 : rotterdamScenario(params.get('scenario'))
@@ -84,7 +79,9 @@ const rudder = document.querySelector<HTMLInputElement>('#rudder')
 
 const windKnots = (HARBOUR_ENVIRONMENT.windSpeedMps ?? 0) * KNOTS_PER_MPS
 const currentKnots = (HARBOUR_ENVIRONMENT.currentSpeedMps ?? 0) * KNOTS_PER_MPS
-const environmentLabel = `WND ${windKnots.toFixed(0)} kn/${HARBOUR_ENVIRONMENT.windFromDeg ?? 0}° · CUR ${currentKnots.toFixed(1)} kn/${HARBOUR_ENVIRONMENT.currentToDeg ?? 0}°`
+const environmentLabel = environmentMode === 'baseline'
+  ? 'ENV CALM'
+  : `ENV CROSS · WND ${windKnots.toFixed(0)} kn/${HARBOUR_ENVIRONMENT.windFromDeg ?? 0}° · CUR ${currentKnots.toFixed(1)} kn/${HARBOUR_ENVIRONMENT.currentToDeg ?? 0}°`
 if (scenarioTitleEl) scenarioTitleEl.textContent = scenario.name
 if (contextEl) contextEl.textContent = arrival
   ? `${arrival.vesselName} · ${arrival.destination} · ${(arrival.loadRatio * 100).toFixed(0)}% load · ${environmentLabel}`
@@ -135,7 +132,7 @@ async function ensureSound() {
 
 function persistAttempt() {
   if (!arrival || campaignSettled) return
-  saveHarbourAttempt(sessionStorage, { version: 2, vesselId: arrival.vesselId, state, operation, input })
+  saveHarbourAttempt(sessionStorage, { version: 3, vesselId: arrival.vesselId, state, operation, input })
 }
 
 function syncEngineButtons() {
