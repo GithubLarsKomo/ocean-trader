@@ -19,9 +19,9 @@ describe('P5.3-E wind forces', () => {
     expect(result.yawMoment).toBeLessThan(0)
   })
 
-  it('uses apparent rather than true wind while the vessel is moving', () => {
-    const stopped = windForces(initialManoeuvreState(), { windSpeedMps: 8, windFromDeg: 180 }, vessel)
-    const moving = windForces({ ...initialManoeuvreState(), surge: 3 }, { windSpeedMps: 8, windFromDeg: 180 }, vessel)
+  it('uses relative rather than true wind while the vessel is moving into a headwind', () => {
+    const stopped = windForces(initialManoeuvreState(), { windSpeedMps: 8, windFromDeg: 0 }, vessel)
+    const moving = windForces({ ...initialManoeuvreState(), surge: 3 }, { windSpeedMps: 8, windFromDeg: 0 }, vessel)
     expect(moving.apparentSpeedMps).toBeGreaterThan(stopped.apparentSpeedMps)
   })
 })
