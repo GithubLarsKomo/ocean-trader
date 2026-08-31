@@ -2,7 +2,9 @@ import type { EnvironmentState, ManoeuvreInput, ManoeuvreState, VesselLoadState 
 import type { VesselParameters } from './vessel-parameters'
 import { hullForces } from './forces/hull'
 import { stepPropulsion } from './forces/propulsion'
+import { propWalkForces } from './forces/prop-walk'
 import { rudderForces } from './forces/rudder'
+import { bowThrusterForces } from './forces/thruster'
 
 export const FIXED_DT = 1 / 30
 
@@ -17,19 +19,18 @@ export function stepManoeuvre(
   dt = FIXED_DT,
 ): ManoeuvreState {
   const rudder = clamp(input.rudder, -1, 1)
+  const bowThruster = clamp(input.bowThruster ?? 0, -1, 1)
   const propulsion = stepPropulsion(state, input, vessel, dt)
   const hull = hullForces(state, vessel)
   const rudderLoad = rudderForces(state, rudder, propulsion.shaftActual, vessel)
+  const propWalk = propWalkForces(state, propulsion.shaftActual, vessel)
+  const thruster = bowThrusterForces(state, bowThruster, vessel)
   const massFactor = load.displacementTonnes / vessel.lightshipTonnes
 
   const surgeAcceleration = (propulsion.thrust + hull.surgeForce) / massFactor
-
-  // P5.3-C will extract prop walk into its own force module. Until then it
-  // remains the existing deterministic baseline so B can focus on hull/rudder.
-  const propWalk = propulsion.shaftActual < 0 ? vessel.propWalk * -propulsion.shaftActual : 0
   const windSway = environment.windY * vessel.windage / massFactor
-  const swayAcceleration = (hull.swayForce + rudderLoad.swayForce + propWalk * .12) / massFactor + windSway
-  const yawAcceleration = (hull.yawMoment + rudderLoad.yawMoment + propWalk) / (vessel.yawInertia * massFactor)
+  const swayAcceleration = (hull.swayForce + rudderLoad.swayForce + propWalk.swayForce + thruster.swayForce) / massFactor + windSway
+  const yawAcceleration = (hull.yawMoment + rudderLoad.yawMoment + propWalk.yawMoment + thruster.yawMoment) / (vessel.yawInertia * massFactor)
 
   const surge = state.surge + surgeAcceleration * dt
   const sway = state.sway + swayAcceleration * dt
@@ -49,6 +50,7 @@ export function stepManoeuvre(
     sway,
     yawRate,
     rudder,
+    bowThruster,
     engineOrder: propulsion.engineOrder,
     shaftDemand: propulsion.shaftDemand,
     shaftActual: propulsion.shaftActual,
@@ -56,7 +58,7 @@ export function stepManoeuvre(
     elapsed: state.elapsed + dt,
   }
   const numericState = [
-    next.x, next.y, next.heading, next.surge, next.sway, next.yawRate, next.rudder,
+    next.x, next.y, next.heading, next.surge, next.sway, next.yawRate, next.rudder, next.bowThruster,
     next.shaftDemand, next.shaftActual, next.reversalDelayRemaining, next.condition, next.elapsed,
   ]
   if (!numericState.every(Number.isFinite)) throw new Error('Non-finite manoeuvre state')
