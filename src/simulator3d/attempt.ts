@@ -25,8 +25,8 @@ const isEngineOrder = (value: unknown): value is EngineOrder => typeof value ===
 
 function normalizeInput(value: StoredAttempt['input']): ManoeuvreInput | null {
   if (!value || !finite(value.rudder)) return null
-  if (isEngineOrder(value.engineOrder)) return { engineOrder: value.engineOrder, rudder: value.rudder }
-  if (finite(value.throttle)) return { engineOrder: engineOrderFromLegacyThrottle(value.throttle), rudder: value.rudder }
+  if (isEngineOrder(value.engineOrder)) return { engineOrder: value.engineOrder, rudder: value.rudder, bowThruster: 0 }
+  if (finite(value.throttle)) return { engineOrder: engineOrderFromLegacyThrottle(value.throttle), rudder: value.rudder, bowThruster: 0 }
   return null
 }
 
@@ -57,6 +57,7 @@ function normalizeState(value: StoredAttempt['state'], input: ManoeuvreInput): M
     sway: value.sway,
     yawRate: value.yawRate,
     rudder: finite(value.rudder) ? value.rudder : input.rudder,
+    bowThruster: 0,
     engineOrder,
     shaftDemand,
     shaftActual,
@@ -81,7 +82,12 @@ export function loadHarbourAttempt(storage: Pick<Storage, 'getItem'>, vesselId: 
 }
 
 export function saveHarbourAttempt(storage: Pick<Storage, 'setItem'>, attempt: HarbourAttempt) {
-  storage.setItem(attemptKey(attempt.vesselId), JSON.stringify(attempt))
+  const safeAttempt: HarbourAttempt = {
+    ...attempt,
+    state: { ...attempt.state, bowThruster: 0 },
+    input: { ...attempt.input, bowThruster: 0 },
+  }
+  storage.setItem(attemptKey(attempt.vesselId), JSON.stringify(safeAttempt))
 }
 
 export function clearHarbourAttempt(storage: Pick<Storage, 'removeItem'>, vesselId: string) {
