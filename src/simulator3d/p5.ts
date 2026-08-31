@@ -7,6 +7,7 @@ import { loadState as simulationLoadState, VESSEL_PARAMETERS } from '../simulati
 import { createShipAudio } from './audio'
 import { clearHarbourAttempt, loadHarbourAttempt, saveHarbourAttempt } from './attempt'
 import { loadCampaignArrival, settleCampaignArrival, simulationLoadForArrival } from './campaign'
+import { neutralBridgeInput, rudderPresentation, startGateMessage } from './human-test-controls'
 import { evaluateHarbourOperation, initialHarbourOperationState } from './operations'
 import { ROTTERDAM_P5, rotterdamScenario, type P5HarbourScenario } from './rotterdam'
 import { createP5Scene } from './scene'
@@ -44,8 +45,14 @@ function freshOperation(selected: P5HarbourScenario) {
 
 let state = savedAttempt?.state ?? freshState(arrival?.initialCondition ?? 100)
 let operation = savedAttempt?.operation ?? freshOperation(scenario)
-let input: ManoeuvreInput = savedAttempt?.input ?? { engineOrder: 'STOP', rudder: 0, bowThruster: 0 }
-let uiRudder = input.rudder
+// A restored attempt keeps physical motion, damage and shaft state but must never
+// continue merely because Safari opened/reloaded the page. Bridge commands return
+// neutral and the fixed-step loop waits for the first deliberate control input.
+let input: ManoeuvreInput = savedAttempt ? neutralBridgeInput() : neutralBridgeInput()
+state = { ...state, rudder: 0, bowThruster: 0 }
+let startResumeMessage = operation.message
+let simulationArmed = operation.docked
+if (!operation.docked) operation = { ...operation, message: startGateMessage(Boolean(savedAttempt)) }
 let accumulator = 0
 let previous = performance.now()
 let campaignSettled = false
@@ -127,6 +134,15 @@ function persistAttempt() {
   saveHarbourAttempt(sessionStorage, { version: 2, vesselId: arrival.vesselId, state, operation, input })
 }
 
+function armSimulation() {
+  if (simulationArmed || operation.docked) return
+  simulationArmed = true
+  operation = { ...operation, message: startResumeMessage }
+  accumulator = 0
+  previous = performance.now()
+  persistAttempt()
+}
+
 function syncEngineButtons() {
   const order = commandedOrder()
   document.querySelectorAll<HTMLButtonElement>('[data-engine-order]').forEach(button => {
@@ -158,6 +174,7 @@ syncThrusterButtons()
 document.querySelectorAll<HTMLButtonElement>('[data-engine-order]').forEach(button => button.addEventListener('click', () => {
   const order = engineOrders[button.dataset.engineOrder ?? '']
   if (!order || operation.docked) return
+  armSimulation()
   void ensureSound()
   input = { ...input, engineOrder: order }
   persistAttempt()
@@ -168,6 +185,7 @@ thrusterButtons.forEach(button => {
   button.addEventListener('pointerdown', event => {
     event.preventDefault()
     if (operation.docked) return
+    armSimulation()
     void ensureSound()
     activeThrusterPointer = event.pointerId
     button.setPointerCapture(event.pointerId)
@@ -180,6 +198,7 @@ thrusterButtons.forEach(button => {
     if (event.key !== ' ' && event.key !== 'Enter') return
     event.preventDefault()
     if (operation.docked) return
+    armSimulation()
     void ensureSound()
     setBowThruster(Number(button.dataset.bowThruster ?? 0))
   })
@@ -194,12 +213,16 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) relea
 
 const rudder = document.querySelector<HTMLInputElement>('#rudder')
 if (rudder) {
-  rudder.value = String(uiRudder)
+  rudder.value = String(rudderPresentation(input.rudder).normalized)
   rudder.addEventListener('input', () => {
     if (operation.docked) return
+    armSimulation()
     void ensureSound()
-    uiRudder = Number(rudder.value)
-    input = { ...input, rudder: uiRudder }
+    const presentation = rudderPresentation(Number(rudder.value))
+    input = { ...input, rudder: presentation.normalized }
+    // There is no rudder actuator lag in P5.3, so the physical state and every
+    // visual representation can share the commanded angle immediately.
+    state = { ...state, rudder: presentation.normalized }
     persistAttempt()
   })
 }
@@ -240,8 +263,11 @@ function reset() {
     audibleCollisionCount = 0
   }
 
-  input = { engineOrder: 'STOP', rudder: 0, bowThruster: 0 }
-  uiRudder = 0
+  startResumeMessage = operation.message
+  simulationArmed = false
+  operation = { ...operation, message: startGateMessage(false) }
+  input = neutralBridgeInput()
+  state = { ...state, rudder: 0, bowThruster: 0 }
   activeThrusterPointer = null
   if (rudder) rudder.value = '0'
   syncEngineButtons()
@@ -262,16 +288,16 @@ function settleIfDocked() {
 function renderHud() {
   const headingDeg = ((state.heading * 180 / Math.PI) % 360 + 360) % 360
   const navigation = navigationMetrics(state, HARBOUR_ENVIRONMENT)
-  const rudderDeg = Math.round(Math.abs(uiRudder) * 35)
-  const rudderSide = Math.abs(uiRudder) < .025 ? 'MID' : uiRudder < 0 ? 'PORT' : 'STBD'
-  const bowLabel = Math.abs(state.bowThruster) < .01 ? 'OFF' : state.bowThruster < 0 ? 'PORT' : 'STBD'
+  const rudderView = rudderPresentation(input.rudder)
+  const bowCommand = input.bowThruster ?? 0
+  const bowLabel = Math.abs(bowCommand) < .01 ? 'OFF' : bowCommand < 0 ? 'PORT' : 'STBD'
   if (headingEl) headingEl.textContent = `${headingDeg.toFixed(0).padStart(3, '0')}°`
   if (cogEl) cogEl.textContent = `${navigation.cogDeg.toFixed(0).padStart(3, '0')}°`
   if (stwEl) stwEl.textContent = `${navigation.stwKnots.toFixed(1)} kn`
   if (speedEl) speedEl.textContent = `${navigation.sogKnots.toFixed(1)} kn`
   if (rotEl) rotEl.textContent = `${(state.yawRate * 180 / Math.PI * 60).toFixed(1)}°/min`
-  if (rudderEl) rudderEl.textContent = rudderSide === 'MID' ? 'MID' : `${rudderSide} ${rudderDeg}°`
-  if (rudderVisual) rudderVisual.style.transform = `rotate(${uiRudder * 35}deg)`
+  if (rudderEl) rudderEl.textContent = rudderView.label
+  if (rudderVisual) rudderVisual.style.transform = `rotate(${rudderView.cssRotationDeg}deg)`
   if (engineEl) engineEl.textContent = engineOrderLabel(commandedOrder())
   if (bowThrusterEl) bowThrusterEl.textContent = bowLabel
   if (draftEl) draftEl.textContent = `${load.draftMeters.toFixed(1)} m`
@@ -285,7 +311,7 @@ sim.engine.runRenderLoop(() => {
   accumulator += Math.min(.1, (now - previous) / 1000)
   previous = now
   while (accumulator >= FIXED_DT) {
-    if (!operation.docked) {
+    if (simulationArmed && !operation.docked) {
       const before = state
       const stepped = stepManoeuvre(state, input, vessel, load, HARBOUR_ENVIRONMENT, FIXED_DT)
       const evaluated = evaluateHarbourOperation(stepped, before, vessel, load, scenario, operation)
@@ -296,8 +322,11 @@ sim.engine.runRenderLoop(() => {
         audibleCollisionCount = operation.collisions
       }
       if (operation.docked) {
-        input = { engineOrder: 'STOP', rudder: 0, bowThruster: 0 }
+        simulationArmed = false
+        input = neutralBridgeInput()
+        state = { ...state, rudder: 0, bowThruster: 0 }
         activeThrusterPointer = null
+        if (rudder) rudder.value = '0'
         syncEngineButtons()
         syncThrusterButtons()
       }
@@ -310,7 +339,10 @@ sim.engine.runRenderLoop(() => {
     accumulator -= FIXED_DT
   }
   settleIfDocked()
-  sim.renderState(state)
+  const rudderView = rudderPresentation(input.rudder)
+  // The scene still contains the pre-P5.3 mesh sign. Adapt only the render copy;
+  // physics state remains positive=STBD and is never mutated for presentation.
+  sim.renderState({ ...state, rudder: rudderView.rendererRudderInput })
   renderHud()
   sim.scene.render()
 })
