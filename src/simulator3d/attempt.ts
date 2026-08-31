@@ -3,7 +3,7 @@ import { initialManoeuvreState, type EngineOrder, type ManoeuvreInput, type Mano
 import { initialHarbourOperationState, type BerthingMetrics, type HarbourOperationState } from './operations'
 
 export type HarbourAttempt = {
-  version: 2
+  version: 3
   vesselId: string
   state: ManoeuvreState
   operation: HarbourOperationState
@@ -12,15 +12,17 @@ export type HarbourAttempt = {
 
 type StoredOperation = Partial<HarbourOperationState> & { lastBerthingMetrics?: Partial<BerthingMetrics> }
 type StoredAttempt = Partial<Omit<HarbourAttempt, 'version' | 'state' | 'input' | 'operation'>> & {
-  version?: 1 | 2
+  version?: 1 | 2 | 3
   state?: Partial<ManoeuvreState> & { throttle?: number }
   operation?: StoredOperation
   input?: Partial<ManoeuvreInput>
 }
 
-const prefix = 'ocean-trader.harbour-attempt.v2:'
+const prefix = 'ocean-trader.harbour-attempt.v3:'
+const v2Prefix = 'ocean-trader.harbour-attempt.v2:'
 const legacyPrefix = 'ocean-trader.harbour-attempt.v1:'
 export const attemptKey = (vesselId: string) => `${prefix}${vesselId}`
+const v2AttemptKey = (vesselId: string) => `${v2Prefix}${vesselId}`
 const legacyAttemptKey = (vesselId: string) => `${legacyPrefix}${vesselId}`
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 const isEngineOrder = (value: unknown): value is EngineOrder => typeof value === 'string' && value in ENGINE_ORDER_TARGETS
@@ -112,19 +114,50 @@ function normalizeOperation(value: StoredAttempt['operation']): HarbourOperation
   }
 }
 
+function migrateLegacyMotion(state: ManoeuvreState, operation: HarbourOperationState) {
+  const input: ManoeuvreInput = { engineOrder: 'STOP', rudder: 0, bowThruster: 0 }
+  return {
+    state: {
+      ...state,
+      surge: 0,
+      sway: 0,
+      yawRate: 0,
+      rudder: 0,
+      bowThruster: 0,
+      engineOrder: 'STOP' as const,
+      shaftDemand: 0,
+      shaftActual: 0,
+      reversalDelayRemaining: 0,
+    },
+    operation: {
+      ...operation,
+      contactActive: false,
+      berthStableSeconds: 0,
+      lastBerthingMetrics: undefined,
+    },
+    input,
+  }
+}
+
 export function loadHarbourAttempt(storage: Pick<Storage, 'getItem'>, vesselId: string): HarbourAttempt | null {
-  const raw = storage.getItem(attemptKey(vesselId)) ?? storage.getItem(legacyAttemptKey(vesselId))
+  const raw = storage.getItem(attemptKey(vesselId)) ?? storage.getItem(v2AttemptKey(vesselId)) ?? storage.getItem(legacyAttemptKey(vesselId))
   if (!raw) return null
   try {
     const value = JSON.parse(raw) as StoredAttempt
-    if ((value.version !== 1 && value.version !== 2) || value.vesselId !== vesselId) return null
-    const input = normalizeInput(value.input)
-    if (!input) return null
-    const state = normalizeState(value.state, input)
-    if (!state) return null
-    const operation = normalizeOperation(value.operation)
-    if (!operation) return null
-    return { version: 2, vesselId, state, operation, input }
+    if ((value.version !== 1 && value.version !== 2 && value.version !== 3) || value.vesselId !== vesselId) return null
+    const normalizedInput = normalizeInput(value.input)
+    if (!normalizedInput) return null
+    const normalizedState = normalizeState(value.state, normalizedInput)
+    if (!normalizedState) return null
+    const normalizedOperation = normalizeOperation(value.operation)
+    if (!normalizedOperation) return null
+
+    if (value.version !== 3) {
+      const migrated = migrateLegacyMotion(normalizedState, normalizedOperation)
+      return { version: 3, vesselId, ...migrated }
+    }
+
+    return { version: 3, vesselId, state: normalizedState, operation: normalizedOperation, input: normalizedInput }
   } catch { return null }
 }
 
@@ -139,5 +172,6 @@ export function saveHarbourAttempt(storage: Pick<Storage, 'setItem'>, attempt: H
 
 export function clearHarbourAttempt(storage: Pick<Storage, 'removeItem'>, vesselId: string) {
   storage.removeItem(attemptKey(vesselId))
+  storage.removeItem(v2AttemptKey(vesselId))
   storage.removeItem(legacyAttemptKey(vesselId))
 }
