@@ -3,12 +3,18 @@ import {
   accelerationBenchmark,
   bowThrusterBenchmark,
   crashStopBenchmark,
+  harbourResponseBenchmark,
   hardTurnBenchmark,
   lowSpeedRudderBenchmark,
+  lowSpeedTurnBenchmark,
+  normalizedCrashStopBenchmark,
   residualYawBenchmark,
   reversePropWalkBenchmark,
   windDriftBenchmark,
 } from './benchmarks'
+import type { SimulationVesselClass } from './vessel-parameters'
+
+const classes: SimulationVesselClass[] = ['coaster', 'handysize', 'feeder', 'panamax']
 
 describe('P4/P5.3 manoeuvre benchmarks', () => {
   it('keeps acceleration hierarchy plausible', () => {
@@ -72,5 +78,58 @@ describe('P4/P5.3 manoeuvre benchmarks', () => {
     expect(result.metrics.headingChange).toBeGreaterThan(.01)
     expect(result.metrics.lateralOffset).toBeGreaterThan(0)
     expect(result.metrics.maxYawRate).toBeGreaterThan(1e-4)
+  })
+
+  it('AT-07: class response, low-speed turn and normalized stopping form a stable hierarchy', () => {
+    const response = classes.map(vesselClass => harbourResponseBenchmark(vesselClass, .5).metrics.distance)
+    const turn = classes.map(vesselClass => lowSpeedTurnBenchmark(vesselClass, .5).metrics.headingChange)
+    const stop = classes.map(vesselClass => normalizedCrashStopBenchmark(vesselClass, 1).metrics.stopDistance)
+
+    for (let i = 0; i < classes.length - 1; i += 1) {
+      expect(response[i]).toBeGreaterThan(response[i + 1])
+      expect(turn[i]).toBeGreaterThan(turn[i + 1])
+      expect(stop[i]).toBeLessThan(stop[i + 1])
+    }
+
+    expect(stop[3]).toBeGreaterThanOrEqual(stop[0] * 1.8)
+  })
+
+  it('AT-07: Handysize remains between Coaster and Feeder as the reference class', () => {
+    const coaster = harbourResponseBenchmark('coaster', .5)
+    const handysize = harbourResponseBenchmark('handysize', .5)
+    const feeder = harbourResponseBenchmark('feeder', .5)
+    const panamax = harbourResponseBenchmark('panamax', .5)
+
+    expect(coaster.metrics.distance).toBeGreaterThan(handysize.metrics.distance)
+    expect(handysize.metrics.distance).toBeGreaterThan(feeder.metrics.distance)
+    expect(feeder.metrics.distance).toBeGreaterThan(panamax.metrics.distance)
+  })
+
+  it('AT-08: loading measurably changes response, stopping and turn behaviour for every class', () => {
+    for (const vesselClass of classes) {
+      const emptyResponse = harbourResponseBenchmark(vesselClass, 0)
+      const ladenResponse = harbourResponseBenchmark(vesselClass, 1)
+      const emptyStop = normalizedCrashStopBenchmark(vesselClass, 0)
+      const ladenStop = normalizedCrashStopBenchmark(vesselClass, 1)
+      const emptyTurn = lowSpeedTurnBenchmark(vesselClass, 0)
+      const ladenTurn = lowSpeedTurnBenchmark(vesselClass, 1)
+
+      expect(emptyResponse.metrics.distance).toBeGreaterThan(ladenResponse.metrics.distance * 1.3)
+      expect(ladenStop.metrics.stopDistance).toBeGreaterThan(emptyStop.metrics.stopDistance * 1.2)
+      expect(emptyTurn.metrics.headingChange).toBeGreaterThan(ladenTurn.metrics.headingChange * 1.15)
+    }
+  })
+
+  it('AT-08: Handysize reference load effect has comfortable calibration margin', () => {
+    const emptyResponse = harbourResponseBenchmark('handysize', 0)
+    const ladenResponse = harbourResponseBenchmark('handysize', 1)
+    const emptyStop = normalizedCrashStopBenchmark('handysize', 0)
+    const ladenStop = normalizedCrashStopBenchmark('handysize', 1)
+    const emptyTurn = lowSpeedTurnBenchmark('handysize', 0)
+    const ladenTurn = lowSpeedTurnBenchmark('handysize', 1)
+
+    expect(emptyResponse.metrics.distance).toBeGreaterThan(ladenResponse.metrics.distance * 1.5)
+    expect(ladenStop.metrics.stopDistance).toBeGreaterThan(emptyStop.metrics.stopDistance * 1.3)
+    expect(emptyTurn.metrics.headingChange).toBeGreaterThan(ladenTurn.metrics.headingChange * 1.4)
   })
 })
