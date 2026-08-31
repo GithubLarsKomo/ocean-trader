@@ -1,6 +1,6 @@
 import type { ManoeuvreState, VesselLoadState } from '../simulation/state'
 import type { VesselParameters } from '../simulation/vessel-parameters'
-import type { P5HarbourScenario } from './rotterdam'
+import type { P5HarbourScenario, ScenarioZone } from './rotterdam'
 
 export type BerthingMetrics = {
   longitudinalErrorUnits: number
@@ -14,8 +14,10 @@ export type BerthingMetrics = {
 export type HarbourOperationState = {
   collisions: number
   damage: number
+  /** Generic scenario completion flag; for campaign arrivals this still means safely docked. */
   docked: boolean
   contactActive: boolean
+  /** Stable-goal timer. Historical name retained for persistence compatibility. */
   berthStableSeconds: number
   message: string
   lastBerthingMetrics?: BerthingMetrics
@@ -27,7 +29,7 @@ export const initialHarbourOperationState = (): HarbourOperationState => ({
   docked: false,
   contactActive: false,
   berthStableSeconds: 0,
-  message: 'Approach berth',
+  message: 'Begin manoeuvre',
 })
 
 const pointInBox = (x: number, z: number, box: { x: number; z: number; length: number; width: number }, margin = 0) =>
@@ -123,6 +125,92 @@ function approachMessage(metrics: BerthingMetrics, scenario: P5HarbourScenario) 
   return 'Hold berth position'
 }
 
+function stableSeconds(operation: HarbourOperationState, stable: boolean, state: ManoeuvreState, previous: ManoeuvreState) {
+  const dt = Math.max(1 / 30, state.elapsed - previous.elapsed)
+  return stable ? operation.berthStableSeconds + dt : 0
+}
+
+function zoneMessage(point: { x: number; z: number }, zone: ScenarioZone) {
+  const dx = point.x - zone.x
+  const dz = point.z - zone.z
+  return `Proceed to target zone · Δ ${Math.hypot(dx, dz).toFixed(1)}`
+}
+
+function evaluateScenarioGoal(
+  state: ManoeuvreState,
+  previous: ManoeuvreState,
+  scenario: P5HarbourScenario,
+  operation: HarbourOperationState,
+): { state: ManoeuvreState; operation: HarbourOperationState } {
+  const goal = scenario.goal
+
+  if (goal.type === 'berth') {
+    const metrics = berthingMetrics(state, previous, scenario)
+    const positionOk = metrics.longitudinalErrorUnits <= scenario.berth.length * .38 && metrics.lateralErrorUnits <= scenario.berth.width * .45
+    const headingOk = metrics.headingErrorDeg <= 3
+    const longitudinalOk = Math.abs(metrics.longitudinalSpeedMps) <= .20
+    const lateralOk = Math.abs(metrics.lateralSpeedMps) <= .10
+    const yawOk = metrics.yawRateDegPerSec <= .15
+    const stable = positionOk && headingOk && longitudinalOk && lateralOk && yawOk
+    const timer = stableSeconds(operation, stable, state, previous)
+    if (timer >= goal.stableSeconds) {
+      return {
+        state: { ...state, surge: 0, sway: 0, yawRate: 0 },
+        operation: { ...operation, berthStableSeconds: timer, docked: true, lastBerthingMetrics: metrics, message: `Berth secured · stable for ${goal.stableSeconds.toFixed(1)} s` },
+      }
+    }
+    return {
+      state,
+      operation: {
+        ...operation,
+        berthStableSeconds: timer,
+        lastBerthingMetrics: metrics,
+        message: stable ? `Berth stable ${timer.toFixed(1)} / ${goal.stableSeconds.toFixed(1)} s` : approachMessage(metrics, scenario),
+      },
+    }
+  }
+
+  const point = world(state, scenario)
+  const velocity = groundVelocity(state, previous)
+  const speed = Math.hypot(velocity.x, velocity.z)
+
+  if (goal.type === 'unberth') {
+    const inExit = pointInBox(point.x, point.z, goal.exitZone)
+    const headingErrorDeg = angleDelta(state.heading, goal.targetHeading) * 180 / Math.PI
+    const speedOk = speed >= goal.minSpeedMps && speed <= goal.maxSpeedMps
+    const stable = inExit && headingErrorDeg <= goal.headingToleranceDeg && speedOk
+    const timer = stableSeconds(operation, stable, state, previous)
+    if (timer >= goal.stableSeconds) {
+      return {
+        state,
+        operation: { ...operation, berthStableSeconds: timer, docked: true, message: 'Unberthing complete · outbound in fairway' },
+      }
+    }
+    let message = zoneMessage(point, goal.exitZone)
+    if (inExit && headingErrorDeg > goal.headingToleranceDeg) message = `Turn outbound · ${headingErrorDeg.toFixed(1)}° heading error`
+    else if (inExit && !speedOk) message = `Establish controlled outbound speed · ${speed.toFixed(2)} m/s`
+    else if (stable) message = `Outbound stable ${timer.toFixed(1)} / ${goal.stableSeconds.toFixed(1)} s`
+    return { state, operation: { ...operation, berthStableSeconds: timer, message } }
+  }
+
+  const inBasin = pointInBox(point.x, point.z, goal.basin)
+  const headingErrorDeg = angleDelta(state.heading, goal.targetHeading) * 180 / Math.PI
+  const yawRateDegPerSec = Math.abs(state.yawRate * 180 / Math.PI)
+  const stable = inBasin && headingErrorDeg <= goal.headingToleranceDeg && speed <= goal.maxSpeedMps && yawRateDegPerSec <= goal.maxYawRateDegPerSec
+  const timer = stableSeconds(operation, stable, state, previous)
+  if (timer >= goal.stableSeconds) {
+    return {
+      state: { ...state, surge: 0, sway: 0, yawRate: 0 },
+      operation: { ...operation, berthStableSeconds: timer, docked: true, message: 'Turning basin complete · 180° turn arrested' },
+    }
+  }
+  let message = !inBasin ? 'Return to turning basin' : `Turn to 180° · ${headingErrorDeg.toFixed(1)}° remaining`
+  if (inBasin && headingErrorDeg <= goal.headingToleranceDeg && speed > goal.maxSpeedMps) message = `Reduce speed · ${speed.toFixed(2)} m/s`
+  else if (inBasin && headingErrorDeg <= goal.headingToleranceDeg && yawRateDegPerSec > goal.maxYawRateDegPerSec) message = `Arrest rotation · ${yawRateDegPerSec.toFixed(2)}°/s`
+  else if (stable) message = `Turn stable ${timer.toFixed(1)} / ${goal.stableSeconds.toFixed(1)} s`
+  return { state, operation: { ...operation, berthStableSeconds: timer, message } }
+}
+
 export function evaluateHarbourOperation(
   state: ManoeuvreState,
   previous: ManoeuvreState,
@@ -138,16 +226,9 @@ export function evaluateHarbourOperation(
 
   if (contactResult?.kind === 'quay') {
     if (contactResult.normalSpeed <= .10) {
-      workingOperation = {
-        ...workingOperation,
-        contactActive: true,
-        message: `Controlled fender contact · ${contactResult.normalSpeed.toFixed(2)} m/s`,
-      }
+      workingOperation = { ...workingOperation, contactActive: true, message: `Controlled fender contact · ${contactResult.normalSpeed.toFixed(2)} m/s` }
     } else if (operation.contactActive) {
-      return {
-        state: { ...previous, surge: previous.surge * -.05, sway: previous.sway * -.12, yawRate: previous.yawRate * .35 },
-        operation,
-      }
+      return { state: { ...previous, surge: previous.surge * -.05, sway: previous.sway * -.12, yawRate: previous.yawRate * .35 }, operation }
     } else {
       const impact = quayDamage(contactResult.normalSpeed, load)
       const hardBerthing = contactResult.normalSpeed <= .30
@@ -195,36 +276,5 @@ export function evaluateHarbourOperation(
     workingOperation = { ...operation, contactActive: false }
   }
 
-  const metrics = berthingMetrics(state, previous, scenario)
-  const positionOk = metrics.longitudinalErrorUnits <= scenario.berth.length * .38 && metrics.lateralErrorUnits <= scenario.berth.width * .45
-  const headingOk = metrics.headingErrorDeg <= 3
-  const longitudinalOk = Math.abs(metrics.longitudinalSpeedMps) <= .20
-  const lateralOk = Math.abs(metrics.lateralSpeedMps) <= .10
-  const yawOk = metrics.yawRateDegPerSec <= .15
-  const stable = positionOk && headingOk && longitudinalOk && lateralOk && yawOk
-  const dt = Math.max(1 / 30, state.elapsed - previous.elapsed)
-  const berthStableSeconds = stable ? (workingOperation.berthStableSeconds ?? 0) + dt : 0
-
-  if (berthStableSeconds >= 3) {
-    return {
-      state: { ...state, surge: 0, sway: 0, yawRate: 0 },
-      operation: {
-        ...workingOperation,
-        berthStableSeconds,
-        docked: true,
-        lastBerthingMetrics: metrics,
-        message: 'Berth secured · stable for 3.0 s',
-      },
-    }
-  }
-
-  return {
-    state,
-    operation: {
-      ...workingOperation,
-      berthStableSeconds,
-      lastBerthingMetrics: metrics,
-      message: stable ? `Berth stable ${berthStableSeconds.toFixed(1)} / 3.0 s` : approachMessage(metrics, scenario),
-    },
-  }
+  return evaluateScenarioGoal(state, previous, scenario, workingOperation)
 }
