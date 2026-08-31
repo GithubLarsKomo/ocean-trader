@@ -31,9 +31,16 @@ function normalizeInput(value: StoredAttempt['input']): ManoeuvreInput | null {
 }
 
 function normalizeState(value: StoredAttempt['state'], input: ManoeuvreInput): ManoeuvreState | null {
-  if (!value) return null
-  const required = [value.x, value.y, value.heading, value.surge, value.sway, value.yawRate, value.condition]
-  if (!required.every(finite)) return null
+  if (
+    !value
+    || !finite(value.x)
+    || !finite(value.y)
+    || !finite(value.heading)
+    || !finite(value.surge)
+    || !finite(value.sway)
+    || !finite(value.yawRate)
+    || !finite(value.condition)
+  ) return null
 
   const engineOrder = isEngineOrder(value.engineOrder) ? value.engineOrder : input.engineOrder ?? engineOrderFromLegacyThrottle(input.throttle ?? 0)
   const legacyShaft = finite(value.throttle) ? Math.max(-1, Math.min(1, value.throttle)) : 0
