@@ -84,7 +84,16 @@ export function crashStopBenchmark(vesselClass: SimulationVesselClass, loadRatio
 export function reversePropWalkBenchmark(vesselClass: SimulationVesselClass, loadRatio = .5): BenchmarkResult {
   const vessel = VESSEL_PARAMETERS[vesselClass]
   const run = runPhases(vessel, loadRatio, [{ seconds: 45, input: { throttle: -.85, rudder: 0 } }])
-  return { id: 'reverse-prop-walk', vesselClass, loadRatio, duration: 45, ...run, metrics: { headingChange: Math.abs(run.final.heading), lateralOffset: Math.abs(run.final.y), maxYawRate: maxAbs(run.track, 'yawRate') } }
+  return {
+    id: 'reverse-prop-walk', vesselClass, loadRatio, duration: 45, ...run,
+    metrics: {
+      headingChange: Math.abs(run.final.heading),
+      lateralOffset: Math.abs(run.final.y),
+      maxYawRate: maxAbs(run.track, 'yawRate'),
+      signedHeading: run.final.heading,
+      signedSway: run.final.sway,
+    },
+  }
 }
 
 export function windDriftBenchmark(vesselClass: SimulationVesselClass, loadRatio = .5): BenchmarkResult {
@@ -123,6 +132,20 @@ export function residualYawBenchmark(vesselClass: SimulationVesselClass, loadRat
   }
 }
 
+export function bowThrusterBenchmark(vesselClass: SimulationVesselClass, loadRatio = .5): BenchmarkResult {
+  const vessel = VESSEL_PARAMETERS[vesselClass]
+  const run = runPhases(vessel, loadRatio, [{ seconds: 12, input: { engineOrder: 'STOP', rudder: 0, bowThruster: 1 } }])
+  return {
+    id: 'bow-thruster', vesselClass, loadRatio, duration: 12, ...run,
+    metrics: {
+      headingChange: Math.abs(run.final.heading),
+      lateralOffset: Math.abs(run.final.y),
+      maxSway: maxAbs(run.track, 'sway'),
+      maxYawRate: maxAbs(run.track, 'yawRate'),
+    },
+  }
+}
+
 export function benchmarkSuite(vesselClass: SimulationVesselClass, loadRatio = .5) {
   return [
     accelerationBenchmark(vesselClass, loadRatio),
@@ -132,6 +155,7 @@ export function benchmarkSuite(vesselClass: SimulationVesselClass, loadRatio = .
     windDriftBenchmark(vesselClass, loadRatio),
     lowSpeedRudderBenchmark(vesselClass, loadRatio),
     residualYawBenchmark(vesselClass, loadRatio),
+    bowThrusterBenchmark(vesselClass, loadRatio),
   ]
 }
 
