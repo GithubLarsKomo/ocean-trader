@@ -13,9 +13,10 @@ export type WindForces = {
 const WIND_FORCE_SCALE = .00012
 
 /**
- * Compact apparent-wind model for low-speed harbour manoeuvring.
- * True wind is resolved in world coordinates, ship ground velocity is removed,
- * then the apparent air vector is transformed into vessel body coordinates.
+ * Compact relative-wind model for low-speed harbour manoeuvring.
+ * True wind is resolved in world coordinates and vessel water-relative motion
+ * is removed. Current is intentionally excluded here so it remains a pure
+ * ground-track effect and cannot create artificial hull/aerodynamic yaw.
  * Positive lateral force pushes the vessel to starboard. The center of effort
  * is aft of CG, so that same force produces an opposing (port) yaw moment.
  */
@@ -26,8 +27,8 @@ export function windForces(
 ): WindForces {
   const vectors = environmentVectors(environment)
   const navigation = navigationMetrics(state, environment)
-  const apparentWorldX = vectors.windWorldX - navigation.groundWorldX
-  const apparentWorldY = vectors.windWorldY - navigation.groundWorldY
+  const apparentWorldX = vectors.windWorldX - navigation.waterWorldX
+  const apparentWorldY = vectors.windWorldY - navigation.waterWorldY
   const cos = Math.cos(state.heading)
   const sin = Math.sin(state.heading)
   const apparentForwardMps = apparentWorldX * cos + apparentWorldY * sin
