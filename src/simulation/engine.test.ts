@@ -41,11 +41,11 @@ describe('P4/P5.3 deterministic ship dynamics', () => {
     expect(p.surge).toBeLessThan(c.surge)
   })
 
-  it('supports lateral drift independent of heading', () => {
+  it('supports lateral drift as an independent degree of freedom', () => {
     const vessel = VESSEL_PARAMETERS.feeder
     const result = simulate(initialManoeuvreState(), { throttle: 0, rudder: 0 }, vessel, loadState(vessel, .3), { ...calmEnvironment, windY: .12 }, 60)
     expect(Math.abs(result.y)).toBeGreaterThan(0)
-    expect(result.heading).toBe(0)
+    expect(Math.abs(result.sway)).toBeGreaterThan(0)
   })
 
   it('models prop walk while reversing', () => {
@@ -79,6 +79,33 @@ describe('P4/P5.3 deterministic ship dynamics', () => {
     const reversing = simulate(reversalStart, fullAstern, vessel, load, calmEnvironment, 10)
     expect(reversing.reversalDelayRemaining).toBe(0)
     expect(reversing.shaftActual).toBeLessThan(0)
+  })
+
+  it('AT-03: rudder is ineffective without flow but works with ahead propeller wash', () => {
+    const vessel = VESSEL_PARAMETERS.handysize
+    const load = loadState(vessel, .5)
+    const noFlow = simulate(initialManoeuvreState(), { engineOrder: 'STOP', rudder: 1 }, vessel, load, calmEnvironment, 30)
+    expect(Math.abs(noFlow.heading)).toBeLessThan(1e-10)
+    expect(Math.abs(noFlow.yawRate)).toBeLessThan(1e-10)
+
+    const withWash = simulate(initialManoeuvreState(), { engineOrder: 'DEAD_SLOW_AHEAD', rudder: 1 }, vessel, load, calmEnvironment, 30)
+    expect(withWash.shaftActual).toBeGreaterThan(.1)
+    expect(Math.abs(withWash.heading)).toBeGreaterThan(.01)
+    expect(Math.abs(withWash.sway)).toBeGreaterThan(0)
+  })
+
+  it('AT-04: residual yaw decays gradually and counter-rudder damps it faster', () => {
+    const vessel = VESSEL_PARAMETERS.handysize
+    const load = loadState(vessel, .5)
+    const turning = simulate(initialManoeuvreState(), { engineOrder: 'HALF_AHEAD', rudder: .8 }, vessel, load, calmEnvironment, 25)
+    expect(Math.abs(turning.yawRate)).toBeGreaterThan(1e-4)
+
+    const coasting = simulate(turning, { engineOrder: 'STOP', rudder: 0 }, vessel, load, calmEnvironment, .5)
+    const countered = simulate(turning, { engineOrder: 'STOP', rudder: -.8 }, vessel, load, calmEnvironment, .5)
+
+    expect(Math.abs(coasting.yawRate)).toBeGreaterThan(1e-4)
+    expect(Math.abs(coasting.yawRate)).toBeLessThan(Math.abs(turning.yawRate))
+    expect(Math.abs(countered.yawRate)).toBeLessThan(Math.abs(coasting.yawRate))
   })
 
   it('uses a fixed 30 Hz baseline step', () => {
