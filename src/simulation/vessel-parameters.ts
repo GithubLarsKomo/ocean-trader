@@ -16,6 +16,10 @@ export type VesselParameters = {
   rudderAuthority: number
   propWalk: number
   windage: number
+  engineResponseAheadSeconds: number
+  engineResponseAsternSeconds: number
+  engineResponseStopSeconds: number
+  engineReversalDelaySeconds: number
 }
 
 export const VESSEL_PARAMETERS: Record<SimulationVesselClass, VesselParameters> = {
@@ -23,21 +27,25 @@ export const VESSEL_PARAMETERS: Record<SimulationVesselClass, VesselParameters> 
     classId: 'coaster', lengthMeters: 105, beamMeters: 16, lightshipTonnes: 3500, deadweightTonnes: 8000,
     designDraftMeters: 5.4, aheadThrust: 2.6, reverseThrustFactor: .72, surgeDrag: .042, lateralDrag: .18,
     yawDrag: .34, yawInertia: 1.0, rudderAuthority: 1.0, propWalk: .16, windage: .65,
+    engineResponseAheadSeconds: 3.5, engineResponseAsternSeconds: 4.5, engineResponseStopSeconds: 2.8, engineReversalDelaySeconds: 1.5,
   },
   handysize: {
     classId: 'handysize', lengthMeters: 155, beamMeters: 24, lightshipTonnes: 7800, deadweightTonnes: 18000,
     designDraftMeters: 8.2, aheadThrust: 2.25, reverseThrustFactor: .66, surgeDrag: .036, lateralDrag: .15,
     yawDrag: .30, yawInertia: 1.65, rudderAuthority: .78, propWalk: .19, windage: .78,
+    engineResponseAheadSeconds: 5.0, engineResponseAsternSeconds: 6.5, engineResponseStopSeconds: 3.8, engineReversalDelaySeconds: 2.3,
   },
   feeder: {
     classId: 'feeder', lengthMeters: 185, beamMeters: 29, lightshipTonnes: 11000, deadweightTonnes: 26000,
     designDraftMeters: 9.8, aheadThrust: 2.15, reverseThrustFactor: .62, surgeDrag: .032, lateralDrag: .13,
     yawDrag: .27, yawInertia: 2.15, rudderAuthority: .68, propWalk: .17, windage: 1.18,
+    engineResponseAheadSeconds: 6.0, engineResponseAsternSeconds: 7.5, engineResponseStopSeconds: 4.5, engineReversalDelaySeconds: 2.7,
   },
   panamax: {
     classId: 'panamax', lengthMeters: 225, beamMeters: 32.2, lightshipTonnes: 18000, deadweightTonnes: 52000,
     designDraftMeters: 12.0, aheadThrust: 1.72, reverseThrustFactor: .48, surgeDrag: .027, lateralDrag: .11,
     yawDrag: .23, yawInertia: 3.15, rudderAuthority: .54, propWalk: .14, windage: 1.02,
+    engineResponseAheadSeconds: 8.0, engineResponseAsternSeconds: 10.0, engineResponseStopSeconds: 5.5, engineReversalDelaySeconds: 3.5,
   },
 }
 

@@ -1,6 +1,7 @@
 import './p5.css'
 import { FIXED_DT, stepManoeuvre } from '../simulation/engine'
-import { calmEnvironment, initialManoeuvreState, type ManoeuvreInput } from '../simulation/state'
+import { calmEnvironment, initialManoeuvreState, type EngineOrder, type ManoeuvreInput } from '../simulation/state'
+import { engineOrderFromLegacyThrottle } from '../simulation/forces/propulsion'
 import { loadState as simulationLoadState, VESSEL_PARAMETERS } from '../simulation/vessel-parameters'
 import { createShipAudio } from './audio'
 import { clearHarbourAttempt, loadHarbourAttempt, saveHarbourAttempt } from './attempt'
@@ -21,7 +22,7 @@ const audio = createShipAudio()
 const savedAttempt = arrival ? loadHarbourAttempt(sessionStorage, arrival.vesselId) : null
 let state = savedAttempt?.state ?? initialManoeuvreState(arrival?.initialCondition ?? 100)
 let operation = savedAttempt?.operation ?? initialHarbourOperationState()
-let input: ManoeuvreInput = savedAttempt?.input ?? { throttle: 0, rudder: 0 }
+let input: ManoeuvreInput = savedAttempt?.input ?? { engineOrder: 'STOP', rudder: 0 }
 let uiRudder = input.rudder
 let accumulator = 0
 let previous = performance.now()
@@ -50,10 +51,17 @@ if (returnButton) {
   returnButton.addEventListener('click', () => { window.location.href = '/' })
 }
 
-const engineOrders: Array<[string, number]> = [
-  ['FULL ASTERN', -.55], ['HALF ASTERN', -.30], ['SLOW ASTERN', -.15], ['STOP', 0],
-  ['SLOW AHEAD', .12], ['HALF AHEAD', .30], ['FULL AHEAD', .55],
-]
+const engineOrders: Record<string, EngineOrder> = {
+  'FULL ASTERN': 'FULL_ASTERN',
+  'HALF ASTERN': 'HALF_ASTERN',
+  'SLOW ASTERN': 'SLOW_ASTERN',
+  STOP: 'STOP',
+  'SLOW AHEAD': 'SLOW_AHEAD',
+  'HALF AHEAD': 'HALF_AHEAD',
+  'FULL AHEAD': 'FULL_AHEAD',
+}
+const engineOrderLabel = (order: EngineOrder) => order.replaceAll('_', ' ')
+const commandedOrder = () => input.engineOrder ?? engineOrderFromLegacyThrottle(input.throttle ?? 0)
 
 async function ensureSound() {
   if (audio.enabled) return
@@ -64,17 +72,24 @@ async function ensureSound() {
 
 function persistAttempt() {
   if (!arrival || campaignSettled) return
-  saveHarbourAttempt(sessionStorage, { version: 1, vesselId: arrival.vesselId, state, operation, input })
+  saveHarbourAttempt(sessionStorage, { version: 2, vesselId: arrival.vesselId, state, operation, input })
 }
 
+function syncEngineButtons() {
+  const order = commandedOrder()
+  document.querySelectorAll<HTMLButtonElement>('[data-engine-order]').forEach(button => {
+    button.classList.toggle('active', engineOrders[button.dataset.engineOrder ?? ''] === order)
+  })
+}
+
+syncEngineButtons()
 document.querySelectorAll<HTMLButtonElement>('[data-engine-order]').forEach(button => button.addEventListener('click', () => {
-  const order = engineOrders.find(([name]) => name === button.dataset.engineOrder)
+  const order = engineOrders[button.dataset.engineOrder ?? '']
   if (!order || operation.docked) return
   void ensureSound()
-  input = { ...input, throttle: order[1] }
+  input = { engineOrder: order, rudder: input.rudder }
   persistAttempt()
-  document.querySelectorAll('[data-engine-order]').forEach(el => el.classList.remove('active'))
-  button.classList.add('active')
+  syncEngineButtons()
 }))
 
 const rudder = document.querySelector<HTMLInputElement>('#rudder')
@@ -113,12 +128,11 @@ function reset() {
   const retainedCollisions = operation.collisions
   state = initialManoeuvreState(retainedCondition)
   operation = { ...initialHarbourOperationState(), damage: retainedDamage, collisions: retainedCollisions, message: retainedCollisions ? `Repositioned · ${retainedDamage.toFixed(1)}% damage retained` : 'Approach berth' }
-  input = { throttle: 0, rudder: 0 }
+  input = { engineOrder: 'STOP', rudder: 0 }
   uiRudder = 0
   audibleCollisionCount = retainedCollisions
   if (rudder) rudder.value = '0'
-  document.querySelectorAll('[data-engine-order]').forEach(el => el.classList.remove('active'))
-  document.querySelector<HTMLButtonElement>('[data-engine-order="STOP"]')?.classList.add('active')
+  syncEngineButtons()
   persistAttempt()
 }
 document.querySelector<HTMLButtonElement>('[data-reset]')?.addEventListener('click', reset)
@@ -142,11 +156,11 @@ function renderHud() {
   if (rotEl) rotEl.textContent = `${(state.yawRate * 180 / Math.PI * 60).toFixed(1)}°/min`
   if (rudderEl) rudderEl.textContent = rudderSide === 'MID' ? 'MID' : `${rudderSide} ${rudderDeg}°`
   if (rudderVisual) rudderVisual.style.transform = `rotate(${uiRudder * 35}deg)`
-  if (engineEl) engineEl.textContent = engineOrders.reduce((best, item) => Math.abs(item[1] - input.throttle) < Math.abs(best[1] - input.throttle) ? item : best)[0]
+  if (engineEl) engineEl.textContent = engineOrderLabel(commandedOrder())
   if (draftEl) draftEl.textContent = `${load.draftMeters.toFixed(1)} m`
   if (conditionEl) conditionEl.textContent = `${state.condition.toFixed(0)}%`
   if (statusEl) statusEl.textContent = operation.message
-  audio.setMotion(operation.docked ? 0 : input.throttle, speedKnots)
+  audio.setMotion(operation.docked ? 0 : state.shaftActual, speedKnots)
 }
 
 sim.engine.runRenderLoop(() => {
@@ -164,7 +178,10 @@ sim.engine.runRenderLoop(() => {
         audio.collision(operation.message.startsWith('Quay') ? 'quay' : 'buoy')
         audibleCollisionCount = operation.collisions
       }
-      if (operation.docked) input = { throttle: 0, rudder: 0 }
+      if (operation.docked) {
+        input = { engineOrder: 'STOP', rudder: 0 }
+        syncEngineButtons()
+      }
       persistenceTicks += 1
       if (persistenceTicks >= 15) {
         persistAttempt()
