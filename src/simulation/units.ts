@@ -7,6 +7,10 @@ const degToRad = (deg: number) => deg * Math.PI / 180
 const radToDeg = (rad: number) => rad * 180 / Math.PI
 const normalizeBearing = (deg: number) => ((deg % 360) + 360) % 360
 
+/** Simulator math uses positive rotation/lateral axis to PORT; maritime bearings increase clockwise to STBD. */
+export const maritimeBearingDeg = (worldAngleRad: number) => normalizeBearing(-radToDeg(worldAngleRad))
+export const maritimeRotDegPerMin = (yawRateRadPerSec: number) => -radToDeg(yawRateRadPerSec) * 60
+
 export type EnvironmentVectors = {
   windWorldX: number
   windWorldY: number
@@ -14,10 +18,10 @@ export type EnvironmentVectors = {
   currentWorldY: number
 }
 
-/** Convert maritime bearing (0° +X, 90° +Y) to a world vector pointing TO that bearing. */
+/** Convert maritime bearing (0° +X, 90° STBD) to the simulator world vector. */
 export function vectorFromBearing(speed: number, bearingDeg: number) {
   const bearing = degToRad(bearingDeg)
-  return { x: speed * Math.cos(bearing), y: speed * Math.sin(bearing) }
+  return { x: speed * Math.cos(bearing), y: -speed * Math.sin(bearing) }
 }
 
 /** Resolve canonical maritime environment fields plus legacy P4/P5.2 axis vectors. */
@@ -58,7 +62,7 @@ export function navigationMetrics(state: Pick<ManoeuvreState, 'heading' | 'surge
   const groundWorldY = waterWorldY + currentWorldY
   const stwMps = Math.hypot(state.surge, state.sway)
   const sogMps = Math.hypot(groundWorldX, groundWorldY)
-  const cogDeg = sogMps < 1e-9 ? normalizeBearing(radToDeg(state.heading)) : normalizeBearing(radToDeg(Math.atan2(groundWorldY, groundWorldX)))
+  const cogDeg = sogMps < 1e-9 ? maritimeBearingDeg(state.heading) : maritimeBearingDeg(Math.atan2(groundWorldY, groundWorldX))
   return {
     stwMps,
     stwKnots: stwMps * KNOTS_PER_MPS,
