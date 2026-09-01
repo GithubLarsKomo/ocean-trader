@@ -2,7 +2,7 @@ import './p5.css'
 import { FIXED_DT, stepManoeuvre } from '../simulation/engine'
 import { calmEnvironment, initialManoeuvreState, type EngineOrder, type ManoeuvreInput, type ManoeuvreState } from '../simulation/state'
 import { engineOrderFromLegacyThrottle } from '../simulation/forces/propulsion'
-import { navigationMetrics, KNOTS_PER_MPS } from '../simulation/units'
+import { maritimeBearingDeg, maritimeRotDegPerMin, navigationMetrics, KNOTS_PER_MPS } from '../simulation/units'
 import { loadState as simulationLoadState, VESSEL_PARAMETERS } from '../simulation/vessel-parameters'
 import { createShipAudio } from './audio'
 import { clearHarbourAttempt, loadHarbourAttempt, saveHarbourAttempt } from './attempt'
@@ -289,14 +289,14 @@ function settleIfDocked() {
 }
 
 function renderHud() {
-  const headingDeg = ((state.heading * 180 / Math.PI) % 360 + 360) % 360
+  const headingDeg = maritimeBearingDeg(state.heading)
   const navigation = navigationMetrics(state, manoeuvreArmed ? HARBOUR_ENVIRONMENT : calmEnvironment)
   const bowLabel = Math.abs(state.bowThruster) < .01 ? 'OFF' : state.bowThruster < 0 ? 'PORT' : 'STBD'
   if (headingEl) headingEl.textContent = `${headingDeg.toFixed(0).padStart(3, '0')}°`
   if (cogEl) cogEl.textContent = `${navigation.cogDeg.toFixed(0).padStart(3, '0')}°`
   if (stwEl) stwEl.textContent = `${navigation.stwKnots.toFixed(1)} kn`
   if (speedEl) speedEl.textContent = `${navigation.sogKnots.toFixed(1)} kn`
-  if (rotEl) rotEl.textContent = `${(state.yawRate * 180 / Math.PI * 60).toFixed(1)}°/min`
+  if (rotEl) rotEl.textContent = `${maritimeRotDegPerMin(state.yawRate).toFixed(1)}°/min`
   syncRudderPresentation()
   if (engineEl) engineEl.textContent = engineOrderLabel(commandedOrder())
   if (bowThrusterEl) bowThrusterEl.textContent = bowLabel
