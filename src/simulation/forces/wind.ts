@@ -17,8 +17,8 @@ const WIND_FORCE_SCALE = .00012
  * True wind is resolved in world coordinates and vessel water-relative motion
  * is removed. Current is intentionally excluded here so it remains a pure
  * ground-track effect and cannot create artificial hull/aerodynamic yaw.
- * Positive lateral force pushes the vessel to starboard. The center of effort
- * is aft of CG, so that same force produces an opposing (port) yaw moment.
+ * Internal positive lateral force is PORT. The center of effort is aft of CG,
+ * so a port force at the aft windage center produces an opposing STBD yaw.
  */
 export function windForces(
   state: Pick<ManoeuvreState, 'heading' | 'surge' | 'sway'>,

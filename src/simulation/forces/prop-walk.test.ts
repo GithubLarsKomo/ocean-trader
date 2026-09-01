@@ -7,16 +7,16 @@ describe('P5.3-C prop walk', () => {
   it('walks a right-handed stern to port when running astern', () => {
     const vessel = VESSEL_PARAMETERS.handysize
     const force = propWalkForces(initialManoeuvreState(), -.8, vessel)
-    expect(force.swayForce).toBeLessThan(0)
-    expect(force.yawMoment).toBeGreaterThan(0)
+    expect(force.swayForce).toBeGreaterThan(0)
+    expect(force.yawMoment).toBeLessThan(0)
   })
 
   it('keeps ahead transverse thrust much weaker and opposite', () => {
     const vessel = VESSEL_PARAMETERS.handysize
     const astern = propWalkForces(initialManoeuvreState(), -.8, vessel)
     const ahead = propWalkForces(initialManoeuvreState(), .8, vessel)
-    expect(ahead.swayForce).toBeGreaterThan(0)
-    expect(ahead.yawMoment).toBeLessThan(0)
+    expect(ahead.swayForce).toBeLessThan(0)
+    expect(ahead.yawMoment).toBeGreaterThan(0)
     expect(Math.abs(ahead.yawMoment)).toBeLessThan(Math.abs(astern.yawMoment) * .2)
   })
 

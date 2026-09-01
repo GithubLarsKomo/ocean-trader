@@ -42,8 +42,9 @@ describe('P4/P5.3 manoeuvre benchmarks', () => {
     const result = reversePropWalkBenchmark('handysize')
     expect(result.metrics.headingChange).toBeGreaterThan(.01)
     expect(result.metrics.lateralOffset).toBeGreaterThan(0)
-    expect(result.metrics.signedHeading).toBeGreaterThan(0)
-    expect(result.metrics.signedSway).toBeLessThan(0)
+    // Right-handed screw astern: stern walks PORT (+internal sway), bow yaws STBD (-internal heading).
+    expect(result.metrics.signedHeading).toBeLessThan(0)
+    expect(result.metrics.signedSway).toBeGreaterThan(0)
   })
 
   it('makes high-windage feeder drift more than coaster', () => {

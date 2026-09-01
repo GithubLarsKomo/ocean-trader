@@ -14,11 +14,11 @@ describe('P5.3-C bow thruster', () => {
     expect(bowThrusterEffectiveness(7, 5)).toBe(0)
   })
 
-  it('pushes the bow and creates yaw in the commanded direction', () => {
+  it('pushes the bow to starboard for a positive/STBD command', () => {
     const vessel = VESSEL_PARAMETERS.handysize
     const force = bowThrusterForces(initialManoeuvreState(), 1, vessel)
-    expect(force.swayForce).toBeGreaterThan(0)
-    expect(force.yawMoment).toBeGreaterThan(0)
+    expect(force.swayForce).toBeLessThan(0)
+    expect(force.yawMoment).toBeLessThan(0)
     expect(force.effectiveness).toBe(1)
   })
 

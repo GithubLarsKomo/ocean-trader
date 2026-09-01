@@ -1,24 +1,30 @@
 import { describe, expect, it } from 'vitest'
 import { calmEnvironment, initialManoeuvreState } from './state'
-import { environmentVectors, navigationMetrics, vectorFromBearing } from './units'
+import { environmentVectors, maritimeBearingDeg, maritimeRotDegPerMin, navigationMetrics, vectorFromBearing } from './units'
 
 describe('P5.3-E navigation units', () => {
-  it('maps simulator navigation bearings into world vectors', () => {
+  it('maps clockwise maritime bearings into simulator world vectors', () => {
     expect(vectorFromBearing(2, 0).x).toBeCloseTo(2)
     expect(vectorFromBearing(2, 0).y).toBeCloseTo(0)
     expect(vectorFromBearing(2, 90).x).toBeCloseTo(0, 12)
-    expect(vectorFromBearing(2, 90).y).toBeCloseTo(2)
+    expect(vectorFromBearing(2, 90).y).toBeCloseTo(-2)
+  })
+
+  it('converts simulator port-positive angles to clockwise HDG/ROT', () => {
+    expect(maritimeBearingDeg(-Math.PI / 2)).toBeCloseTo(90)
+    expect(maritimeBearingDeg(Math.PI / 2)).toBeCloseTo(270)
+    expect(maritimeRotDegPerMin(-Math.PI / 180 / 60)).toBeCloseTo(1)
   })
 
   it('treats wind as FROM and current as TO', () => {
     const vectors = environmentVectors({ windSpeedMps: 10, windFromDeg: 270, currentSpeedMps: .5, currentToDeg: 90 })
     expect(vectors.windWorldX).toBeCloseTo(0, 12)
-    expect(vectors.windWorldY).toBeCloseTo(10)
+    expect(vectors.windWorldY).toBeCloseTo(-10)
     expect(vectors.currentWorldX).toBeCloseTo(0, 12)
-    expect(vectors.currentWorldY).toBeCloseTo(.5)
+    expect(vectors.currentWorldY).toBeCloseTo(-.5)
   })
 
-  it('separates STW from SOG and COG under cross-current', () => {
+  it('separates STW from SOG and COG under starboard cross-current', () => {
     const state = { ...initialManoeuvreState(), surge: 2 }
     const calm = navigationMetrics(state, calmEnvironment)
     const current = navigationMetrics(state, { currentSpeedMps: .5, currentToDeg: 90 })

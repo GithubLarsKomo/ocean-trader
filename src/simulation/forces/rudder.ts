@@ -13,6 +13,11 @@ const sign = (value: number) => value > 1e-6 ? 1 : value < -1e-6 ? -1 : 0
  * Rudder force from water flow over the blade rather than a direct yaw command.
  * Ahead propeller wash keeps the rudder useful at very low ship speed; with
  * STOP and zero vessel speed the rudder produces no force.
+ *
+ * Simulator body/world convention: positive lateral/yaw is PORT (mathematical
+ * counter-clockwise); bridge command convention: positive rudder is STBD.
+ * Therefore a positive/STBD helm produces a port force at the stern and a
+ * negative/starboard yaw moment at the vessel CG.
  */
 export function rudderForces(
   state: Pick<ManoeuvreState, 'surge'>,
@@ -30,11 +35,9 @@ export function rudderForces(
   const direction = sign(state.surge) || sign(shaftActual) || 1
   const rudderEffect = rudder * vessel.rudderForceFactor * effectiveFlow * effectiveFlow * direction
 
-  // Positive helm is STBD. The stern receives an opposing lateral force while
-  // the lever arm produces positive/starboard yaw.
   return {
-    swayForce: -rudderEffect * vessel.rudderSwayFactor,
-    yawMoment: rudderEffect * vessel.rudderLeverArm,
+    swayForce: rudderEffect * vessel.rudderSwayFactor,
+    yawMoment: -rudderEffect * vessel.rudderLeverArm,
     effectiveFlow,
   }
 }

@@ -14,9 +14,9 @@ describe('P5.3-E wind forces', () => {
 
   it('produces starboard sway and opposing yaw from a port beam wind', () => {
     const result = windForces(initialManoeuvreState(), { windSpeedMps: 10, windFromDeg: 270 }, vessel)
-    expect(result.apparentLateralMps).toBeGreaterThan(9.9)
-    expect(result.swayForce).toBeGreaterThan(0)
-    expect(result.yawMoment).toBeLessThan(0)
+    expect(result.apparentLateralMps).toBeLessThan(-9.9)
+    expect(result.swayForce).toBeLessThan(0)
+    expect(result.yawMoment).toBeGreaterThan(0)
   })
 
   it('uses relative rather than true wind while the vessel is moving into a headwind', () => {
