@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { FIXED_DT, simulate, stepManoeuvre } from './engine'
 import { calmEnvironment, initialManoeuvreState } from './state'
+import { maritimeBearingDeg } from './units'
 import { loadState, VESSEL_PARAMETERS } from './vessel-parameters'
 
 const ahead = { throttle: 1, rudder: 0 }
@@ -95,6 +96,21 @@ describe('P4/P5.3 deterministic ship dynamics', () => {
     expect(Math.abs(withWash.sway)).toBeGreaterThan(0)
   })
 
+  it('H3: positive/STBD helm produces a starboard turn and clockwise displayed heading', () => {
+    const vessel = VESSEL_PARAMETERS.handysize
+    const load = loadState(vessel, .5)
+    const starboard = simulate(initialManoeuvreState(), { engineOrder: 'SLOW_AHEAD', rudder: 1 }, vessel, load, calmEnvironment, 20)
+    const port = simulate(initialManoeuvreState(), { engineOrder: 'SLOW_AHEAD', rudder: -1 }, vessel, load, calmEnvironment, 20)
+
+    expect(starboard.heading).toBeLessThan(0)
+    expect(starboard.yawRate).toBeLessThan(0)
+    expect(maritimeBearingDeg(starboard.heading)).toBeGreaterThan(0)
+    expect(maritimeBearingDeg(starboard.heading)).toBeLessThan(180)
+    expect(port.heading).toBeGreaterThan(0)
+    expect(port.yawRate).toBeGreaterThan(0)
+    expect(Math.abs(port.heading)).toBeCloseTo(Math.abs(starboard.heading), 4)
+  })
+
   it('AT-04: residual yaw decays gradually and counter-rudder damps it faster', () => {
     const vessel = VESSEL_PARAMETERS.handysize
     const load = loadState(vessel, .5)
@@ -115,19 +131,19 @@ describe('P4/P5.3 deterministic ship dynamics', () => {
     const astern = simulate(initialManoeuvreState(), { engineOrder: 'HALF_ASTERN', rudder: 0 }, vessel, load, calmEnvironment, 30)
     const aheadRun = simulate(initialManoeuvreState(), { engineOrder: 'HALF_AHEAD', rudder: 0 }, vessel, load, calmEnvironment, 30)
 
-    expect(astern.sway).toBeLessThan(0)
-    expect(astern.heading).toBeGreaterThan(0)
-    expect(aheadRun.heading).toBeLessThan(0)
+    expect(astern.sway).toBeGreaterThan(0)
+    expect(astern.heading).toBeLessThan(0)
+    expect(aheadRun.heading).toBeGreaterThan(0)
     expect(Math.abs(aheadRun.heading)).toBeLessThan(Math.abs(astern.heading) * .35)
   })
 
-  it('AT-06: bow thruster turns the bow at rest, fades by four knots and is ineffective at five', () => {
+  it('AT-06: bow thruster turns the bow to commanded STBD at rest, fades by four knots and is ineffective at five', () => {
     const vessel = VESSEL_PARAMETERS.handysize
     const load = loadState(vessel, .5)
     const stopped = initialManoeuvreState()
     const atRest = stepManoeuvre(stopped, { engineOrder: 'STOP', rudder: 0, bowThruster: 1 }, vessel, load, calmEnvironment)
-    expect(atRest.sway).toBeGreaterThan(0)
-    expect(atRest.yawRate).toBeGreaterThan(0)
+    expect(atRest.sway).toBeLessThan(0)
+    expect(atRest.yawRate).toBeLessThan(0)
     expect(atRest.bowThruster).toBe(1)
 
     const four = { ...initialManoeuvreState(), surge: 4 * MPS_PER_KNOT }
