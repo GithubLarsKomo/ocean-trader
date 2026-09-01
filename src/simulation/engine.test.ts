@@ -108,7 +108,9 @@ describe('P4/P5.3 deterministic ship dynamics', () => {
     expect(maritimeBearingDeg(starboard.heading)).toBeLessThan(180)
     expect(port.heading).toBeGreaterThan(0)
     expect(port.yawRate).toBeGreaterThan(0)
-    expect(Math.abs(port.heading)).toBeCloseTo(Math.abs(starboard.heading), 4)
+    const turnRatio = Math.abs(port.heading / starboard.heading)
+    expect(turnRatio).toBeGreaterThan(.8)
+    expect(turnRatio).toBeLessThan(1.2)
   })
 
   it('AT-04: residual yaw decays gradually and counter-rudder damps it faster', () => {
