@@ -13,19 +13,88 @@ function memoryStorage() {
 }
 
 describe('harbour attempt persistence', () => {
-  it('restores manoeuvre, controls and accumulated damage', () => {
+  it('restores current v3 manoeuvre motion, telegraph controls and accumulated damage', () => {
     const storage = memoryStorage()
-    const state = { ...initialManoeuvreState(87), x: 12, y: -4, surge: .3, heading: .4 }
-    const operation = { ...initialHarbourOperationState(), collisions: 2, damage: 4.5, contactActive: true }
-    saveHarbourAttempt(storage, { version: 1, vesselId: 'v-1', state, operation, input: { throttle: .12, rudder: -.4 } })
-    expect(loadHarbourAttempt(storage, 'v-1')).toEqual({ version: 1, vesselId: 'v-1', state, operation, input: { throttle: .12, rudder: -.4 } })
+    const state = { ...initialManoeuvreState(87), x: 12, y: -4, surge: .3, sway: -.07, yawRate: .01, heading: .4, engineOrder: 'SLOW_AHEAD' as const, shaftDemand: .3, shaftActual: .21 }
+    const operation = { ...initialHarbourOperationState(), collisions: 2, damage: 4.5, contactActive: true, berthStableSeconds: .7 }
+    const input = { engineOrder: 'SLOW_AHEAD' as const, rudder: -.4 }
+    saveHarbourAttempt(storage, { version: 3, vesselId: 'v-1', state, operation, input })
+    expect(loadHarbourAttempt(storage, 'v-1')).toEqual({ version: 3, vesselId: 'v-1', state, operation: { ...operation, lastBerthingMetrics: undefined }, input: { ...input, bowThruster: 0 } })
   })
 
-  it('clears only after explicit completion', () => {
+  it('migrates a v2 attempt to neutral motion while retaining position, condition and damage', () => {
     const storage = memoryStorage()
-    saveHarbourAttempt(storage, { version: 1, vesselId: 'v-1', state: initialManoeuvreState(), operation: initialHarbourOperationState(), input: { throttle: 0, rudder: 0 } })
+    const state = { ...initialManoeuvreState(94), x: 5, y: -2, surge: .2, sway: .18, yawRate: .03, engineOrder: 'SLOW_AHEAD' as const, shaftDemand: .3, shaftActual: .18 }
+    storage.setItem('ocean-trader.harbour-attempt.v2:v-pref', JSON.stringify({
+      version: 2,
+      vesselId: 'v-pref',
+      state,
+      operation: { collisions: 1, damage: 1.8, docked: false, contactActive: true, berthStableSeconds: .4, message: 'Approach berth' },
+      input: { engineOrder: 'SLOW_AHEAD', rudder: .1, bowThruster: 0 },
+    }))
+    const restored = loadHarbourAttempt(storage, 'v-pref')
+    expect(restored?.version).toBe(3)
+    expect(restored?.state.x).toBeCloseTo(5)
+    expect(restored?.state.y).toBeCloseTo(-2)
+    expect(restored?.state.condition).toBeCloseTo(94)
+    expect(restored?.state.surge).toBe(0)
+    expect(restored?.state.sway).toBe(0)
+    expect(restored?.state.yawRate).toBe(0)
+    expect(restored?.state.shaftActual).toBe(0)
+    expect(restored?.state.engineOrder).toBe('STOP')
+    expect(restored?.input).toEqual({ engineOrder: 'STOP', rudder: 0, bowThruster: 0 })
+    expect(restored?.operation.contactActive).toBe(false)
+    expect(restored?.operation.berthStableSeconds).toBe(0)
+    expect(restored?.operation.collisions).toBe(1)
+    expect(restored?.operation.damage).toBeCloseTo(1.8)
+  })
+
+  it('migrates a v1 throttle attempt without carrying legacy motion into H2', () => {
+    const storage = memoryStorage()
+    storage.setItem('ocean-trader.harbour-attempt.v1:v-old', JSON.stringify({
+      version: 1,
+      vesselId: 'v-old',
+      state: { x: 8, y: 3, heading: .2, surge: .4, sway: .02, yawRate: .01, throttle: .3, condition: 91, elapsed: 12 },
+      operation: { collisions: 0, damage: 0, docked: false, contactActive: false, message: 'Approach berth' },
+      input: { throttle: .3, rudder: .2 },
+    }))
+    const restored = loadHarbourAttempt(storage, 'v-old')
+    expect(restored?.version).toBe(3)
+    expect(restored?.input).toEqual({ engineOrder: 'STOP', rudder: 0, bowThruster: 0 })
+    expect(restored?.state.engineOrder).toBe('STOP')
+    expect(restored?.state.shaftActual).toBe(0)
+    expect(restored?.state.surge).toBe(0)
+    expect(restored?.state.sway).toBe(0)
+    expect(restored?.state.yawRate).toBe(0)
+    expect(restored?.state.x).toBeCloseTo(8)
+    expect(restored?.state.y).toBeCloseTo(3)
+    expect(restored?.state.condition).toBeCloseTo(91)
+  })
+
+  it('never restores a momentary bow-thruster command as active', () => {
+    const storage = memoryStorage()
+    const state = { ...initialManoeuvreState(), bowThruster: 1 }
+    saveHarbourAttempt(storage, {
+      version: 3,
+      vesselId: 'v-thruster',
+      state,
+      operation: initialHarbourOperationState(),
+      input: { engineOrder: 'STOP', rudder: 0, bowThruster: 1 },
+    })
+    const restored = loadHarbourAttempt(storage, 'v-thruster')
+    expect(restored?.input.bowThruster).toBe(0)
+    expect(restored?.state.bowThruster).toBe(0)
+  })
+
+  it('clears current, v2 and legacy attempts only after explicit completion', () => {
+    const storage = memoryStorage()
+    saveHarbourAttempt(storage, { version: 3, vesselId: 'v-1', state: initialManoeuvreState(), operation: initialHarbourOperationState(), input: { engineOrder: 'STOP', rudder: 0 } })
+    storage.setItem('ocean-trader.harbour-attempt.v2:v-1', '{}')
+    storage.setItem('ocean-trader.harbour-attempt.v1:v-1', '{}')
     expect(storage.getItem(attemptKey('v-1'))).not.toBeNull()
     clearHarbourAttempt(storage, 'v-1')
     expect(loadHarbourAttempt(storage, 'v-1')).toBeNull()
+    expect(storage.getItem('ocean-trader.harbour-attempt.v2:v-1')).toBeNull()
+    expect(storage.getItem('ocean-trader.harbour-attempt.v1:v-1')).toBeNull()
   })
 })

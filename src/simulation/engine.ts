@@ -1,5 +1,12 @@
 import type { EnvironmentState, ManoeuvreInput, ManoeuvreState, VesselLoadState } from './state'
 import type { VesselParameters } from './vessel-parameters'
+import { hullForces } from './forces/hull'
+import { stepPropulsion } from './forces/propulsion'
+import { propWalkForces } from './forces/prop-walk'
+import { rudderForces } from './forces/rudder'
+import { bowThrusterForces } from './forces/thruster'
+import { windForces } from './forces/wind'
+import { environmentVectors } from './units'
 
 export const FIXED_DT = 1 / 30
 
@@ -13,39 +20,55 @@ export function stepManoeuvre(
   environment: EnvironmentState,
   dt = FIXED_DT,
 ): ManoeuvreState {
-  const throttle = clamp(input.throttle, -1, 1)
   const rudder = clamp(input.rudder, -1, 1)
+  const bowThruster = clamp(input.bowThruster ?? 0, -1, 1)
+  const propulsion = stepPropulsion(state, input, vessel, dt)
+  const hull = hullForces(state, vessel)
+  const rudderLoad = rudderForces(state, rudder, propulsion.shaftActual, vessel)
+  const propWalk = propWalkForces(state, propulsion.shaftActual, vessel)
+  const thruster = bowThrusterForces(state, bowThruster, vessel)
+  const wind = windForces(state, environment, vessel)
   const massFactor = load.displacementTonnes / vessel.lightshipTonnes
-  const thrust = throttle >= 0 ? vessel.aheadThrust * throttle : vessel.aheadThrust * vessel.reverseThrustFactor * throttle
-  const surgeAcceleration = thrust / massFactor - vessel.surgeDrag * state.surge * Math.abs(state.surge)
-  const rudderFlow = Math.min(1.5, Math.abs(state.surge))
-  const yawMoment = rudder * vessel.rudderAuthority * rudderFlow * Math.sign(state.surge || 1)
-  const propWalk = throttle < 0 ? vessel.propWalk * -throttle : 0
-  const yawAcceleration = (yawMoment + propWalk - vessel.yawDrag * state.yawRate) / vessel.yawInertia
-  const windSway = environment.windY * vessel.windage / massFactor
-  const swayAcceleration = windSway - vessel.lateralDrag * state.sway + propWalk * .12
+
+  // Hydrodynamic forces act on water-relative surge/sway only. Current is added
+  // later when propagating ground position and never appears in hull/rudder forces.
+  const surgeAcceleration = (propulsion.thrust + hull.surgeForce) / massFactor
+  const swayAcceleration = (hull.swayForce + rudderLoad.swayForce + propWalk.swayForce + thruster.swayForce + wind.swayForce) / massFactor
+  const yawAcceleration = (hull.yawMoment + rudderLoad.yawMoment + propWalk.yawMoment + thruster.yawMoment + wind.yawMoment) / (vessel.yawInertia * massFactor)
+
   const surge = state.surge + surgeAcceleration * dt
   const sway = state.sway + swayAcceleration * dt
   const yawRate = state.yawRate + yawAcceleration * dt
   const heading = state.heading + yawRate * dt
   const cos = Math.cos(heading)
   const sin = Math.sin(heading)
-  const worldX = surge * cos - sway * sin + environment.currentX
-  const worldY = surge * sin + sway * cos + environment.currentY
+  const { currentWorldX, currentWorldY } = environmentVectors(environment)
+  const waterWorldX = surge * cos - sway * sin
+  const waterWorldY = surge * sin + sway * cos
+  const groundWorldX = waterWorldX + currentWorldX
+  const groundWorldY = waterWorldY + currentWorldY
 
-  const next = {
+  const next: ManoeuvreState = {
     ...state,
-    x: state.x + worldX * dt,
-    y: state.y + worldY * dt,
+    x: state.x + groundWorldX * dt,
+    y: state.y + groundWorldY * dt,
     heading,
     surge,
     sway,
     yawRate,
-    throttle,
     rudder,
+    bowThruster,
+    engineOrder: propulsion.engineOrder,
+    shaftDemand: propulsion.shaftDemand,
+    shaftActual: propulsion.shaftActual,
+    reversalDelayRemaining: propulsion.reversalDelayRemaining,
     elapsed: state.elapsed + dt,
   }
-  if (!Object.values(next).every(Number.isFinite)) throw new Error('Non-finite manoeuvre state')
+  const numericState = [
+    next.x, next.y, next.heading, next.surge, next.sway, next.yawRate, next.rudder, next.bowThruster,
+    next.shaftDemand, next.shaftActual, next.reversalDelayRemaining, next.condition, next.elapsed,
+  ]
+  if (!numericState.every(Number.isFinite)) throw new Error('Non-finite manoeuvre state')
   return next
 }
 
