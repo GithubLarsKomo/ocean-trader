@@ -15,11 +15,13 @@ describe('P5.3-B rudder forces', () => {
 
   it('turns positive/STBD helm to starboard once the vessel has ahead way', () => {
     const state = { ...initialManoeuvreState(), surge: .5 }
-    const result = rudderForces(state, 1, .3, vessel)
-    expect(result.effectiveFlow).toBeCloseTo(.5)
+    const noShaft = rudderForces(state, 1, 0, vessel)
+    const withShaft = rudderForces(state, 1, .3, vessel)
+    expect(noShaft.effectiveFlow).toBeCloseTo(.5)
+    expect(withShaft.effectiveFlow).toBeGreaterThan(noShaft.effectiveFlow)
     // Internal +sway/+yaw is PORT, so STBD helm must create the opposite yaw.
-    expect(result.swayForce).toBeGreaterThan(0)
-    expect(result.yawMoment).toBeLessThan(0)
+    expect(withShaft.swayForce).toBeGreaterThan(0)
+    expect(withShaft.yawMoment).toBeLessThan(0)
   })
 
   it('reverses rudder yaw sense with astern water flow', () => {
