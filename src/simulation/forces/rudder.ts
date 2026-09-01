@@ -10,9 +10,10 @@ export type RudderForces = {
 const sign = (value: number) => value > 1e-6 ? 1 : value < -1e-6 ? -1 : 0
 
 /**
- * Rudder force is generated only by actual water-relative vessel motion over
- * the blade. Shaft rotation / propeller wash alone must not rotate a vessel
- * that is still stopped in the water.
+ * Rudder force requires actual water-relative vessel motion over the blade.
+ * Shaft rotation / propeller wash alone must not rotate a vessel that is still
+ * stopped in the water. Once the vessel has way on, propeller wash may augment
+ * the local rudder inflow and preserve useful low-speed steering authority.
  *
  * Simulator body/world convention: positive lateral/yaw is PORT (mathematical
  * counter-clockwise); bridge command convention: positive rudder is STBD.
@@ -22,14 +23,15 @@ const sign = (value: number) => value > 1e-6 ? 1 : value < -1e-6 ? -1 : 0
 export function rudderForces(
   state: Pick<ManoeuvreState, 'surge'>,
   rudder: number,
-  _shaftActual: number,
+  shaftActual: number,
   vessel: VesselParameters,
 ): RudderForces {
   const shipFlow = Math.abs(state.surge)
-  const effectiveFlow = Math.min(vessel.rudderFlowCap, shipFlow)
+  if (shipFlow < 1e-6 || Math.abs(rudder) < 1e-6) return { swayForce: 0, yawMoment: 0, effectiveFlow: shipFlow }
 
-  if (effectiveFlow < 1e-6 || Math.abs(rudder) < 1e-6) return { swayForce: 0, yawMoment: 0, effectiveFlow }
-
+  const aheadWash = Math.max(0, shaftActual) * vessel.propWashFactor
+  const asternWash = Math.max(0, -shaftActual) * vessel.propWashFactor * vessel.asternRudderWashFactor
+  const effectiveFlow = Math.min(vessel.rudderFlowCap, shipFlow + aheadWash + asternWash)
   const direction = sign(state.surge)
   const rudderEffect = rudder * vessel.rudderForceFactor * effectiveFlow * effectiveFlow * direction
 
