@@ -128,6 +128,7 @@ export function createP5Scene(canvas: HTMLCanvasElement, scenario: P5HarbourScen
   hullRoot.parent = ship
   const hullMat = material(scene, 'hull-mat', new Color3(.075, .14, .18), undefined, new Color3(.16, .16, .16))
   const antiFoul = material(scene, 'antifouling', new Color3(.43, .07, .05))
+  const rudderMat = material(scene, 'rudder-mat', new Color3(.68, .1, .06), new Color3(.06, .01, .005))
   const deckMat = material(scene, 'deck-mat', new Color3(.62, .57, .45))
   const houseMat = material(scene, 'house-mat', new Color3(.84, .85, .8))
   const hatchMat = material(scene, 'hatch-mat', new Color3(.31, .22, .14))
@@ -155,8 +156,11 @@ export function createP5Scene(canvas: HTMLCanvasElement, scenario: P5HarbourScen
   funnel.parent = hullRoot; funnel.position.set(-3.0, 2.55, 0); funnel.material = material(scene, 'funnel-mat', new Color3(.75, .5, .1))
   const mast = MeshBuilder.CreateCylinder('mast', { diameter: .07, height: 2.1, tessellation: 8 }, scene)
   mast.parent = hullRoot; mast.position.set(-1.55, 2.75, 0); mast.material = darkMetal
-  const rudder = MeshBuilder.CreateBox('rudder', { width: .72, height: .95, depth: .11 }, scene)
-  rudder.parent = hullRoot; rudder.position.set(-4.15, -.7, 0); rudder.material = antiFoul
+  const rudder = MeshBuilder.CreateBox('rudder', { width: 1.1, height: 1.05, depth: .16 }, scene)
+  rudder.parent = hullRoot
+  rudder.position.set(-4.58, -.72, 0)
+  rudder.setPivotPoint(new Vector3(.55, 0, 0))
+  rudder.material = rudderMat
 
   const wakeMat = material(scene, 'wake-mat', new Color3(.72, .85, .86), new Color3(.08, .12, .12))
   wakeMat.alpha = 0
